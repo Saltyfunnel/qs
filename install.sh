@@ -174,12 +174,12 @@ fi
 print_phase "Package Installation"
 
 CORE_PACKAGES=(
-    hyprland waybar awww mako zed ly pacman-contrib
+    hyprland awww mako zed ly pacman-contrib
     xdg-desktop-portal-hyprland
 )
 TERMINAL_PACKAGES=(kitty starship fastfetch)
 UTILITY_PACKAGES=(
-    grim slurp wl-clipboard polkit-kde-agent
+    grim slurp wl-clipboard polkit-kde-agent brightnessctl
     bluez bluez-utils blueman udiskie udisks2 gvfs networkmanager
 )
 FILE_PACKAGES=(
@@ -242,9 +242,9 @@ else
     print_ok "yay already present"
 fi
 
-sudo -u "$USER_NAME" yay -S --noconfirm python-pywal16 nordzy-cursors localsend-bin \
+sudo -u "$USER_NAME" yay -S --noconfirm python-pywal16 nordzy-cursors localsend-bin quickshell-git \
     > /tmp/hypr_install_log 2>&1 &
-spinner "$!" "Installing pywal16, localsend, and nordzy cursors"
+spinner "$!" "Installing pywal16, localsend, nordzy cursors, and quickshell"
 wait $! || print_err "AUR install failed  →  /tmp/hypr_install_log"
 print_ok "AUR packages installed"
 
@@ -255,7 +255,7 @@ print_ok "AUR packages installed"
 print_phase "Directory Structure"
 
 CONFIG_DIRS=(
-    "$CONFIG_DIR/hypr"    "$CONFIG_DIR/waybar"
+    "$CONFIG_DIR/hypr"    "$CONFIG_DIR/quickshell"
     "$CONFIG_DIR/kitty"   "$CONFIG_DIR/fastfetch"
     "$CONFIG_DIR/mako"    "$CONFIG_DIR/scripts"
     "$CONFIG_DIR/wal/templates"  "$CONFIG_DIR/btop"
@@ -280,7 +280,6 @@ print_ok "Directory tree created"
 print_phase "Configuration files"
 
 OLD_SYMLINKS=(
-    "$CONFIG_DIR/waybar/style.css"
     "$CONFIG_DIR/kitty/kitty.conf"
     "$CONFIG_DIR/mako/config"
     "$CONFIG_DIR/zed/themes/zed.json"
@@ -289,7 +288,7 @@ for s in "${OLD_SYMLINKS[@]}"; do sudo -u "$USER_NAME" rm -f "$s" 2>/dev/null ||
 print_ok "Stale symlinks & conflicting files cleared"
 
 [[ -d "$CONFIGS_SRC/hypr"                   ]] && run_command "sudo -u $USER_NAME cp -rf '$CONFIGS_SRC/hypr/'* '$CONFIG_DIR/hypr/'"                               "Hyprland config"
-[[ -d "$CONFIGS_SRC/waybar"                  ]] && run_command "sudo -u $USER_NAME cp -rf '$CONFIGS_SRC/waybar/'* '$CONFIG_DIR/waybar/'"                          "Waybar config"
+[[ -d "$CONFIGS_SRC/quickshell"              ]] && run_command "sudo -u $USER_NAME cp -rf '$CONFIGS_SRC/quickshell/'* '$CONFIG_DIR/quickshell/'"                  "Quickshell config"
 [[ -f "$CONFIGS_SRC/kitty/kitty.conf"        ]] && run_command "sudo -u $USER_NAME cp '$CONFIGS_SRC/kitty/kitty.conf' '$CONFIG_DIR/kitty/kitty.conf'"             "Kitty config"
 [[ -f "$CONFIGS_SRC/fastfetch/config.jsonc"  ]] && run_command "sudo -u $USER_NAME cp '$CONFIGS_SRC/fastfetch/config.jsonc' '$CONFIG_DIR/fastfetch/config.jsonc'" "Fastfetch config"
 [[ -f "$CONFIGS_SRC/starship/starship.toml"  ]] && run_command "sudo -u $USER_NAME cp '$CONFIGS_SRC/starship/starship.toml' '$CONFIG_DIR/starship.toml'"          "Starship config"
@@ -446,10 +445,6 @@ print_ok "Thunar 'Open Kitty Here' action configured"
 
 print_phase "Pywal symlinks"
 
-[[ -f "$CONFIG_DIR/wal/templates/waybar-style.css" ]] && \
-    sudo -u "$USER_NAME" ln -sf "$WAL_CACHE/waybar-style.css" "$CONFIG_DIR/waybar/style.css" && \
-    print_ok "waybar/style.css"
-
 [[ -f "$CONFIG_DIR/wal/templates/mako-config" ]] && \
     sudo -u "$USER_NAME" ln -sf "$WAL_CACHE/mako-config" "$CONFIG_DIR/mako/config" && \
     print_ok "mako/config"
@@ -457,6 +452,9 @@ print_phase "Pywal symlinks"
 [[ -f "$CONFIG_DIR/wal/templates/zed.json" ]] && \
     sudo -u "$USER_NAME" ln -sf "$WAL_CACHE/colors-zed.json" "$CONFIG_DIR/zed/themes/zed.json" && \
     print_ok "zed/themes/zed.json"
+
+# Quickshell reads ~/.cache/wal/colors.json directly at runtime (Colors.qml) —
+# no template/symlink needed, it just needs to exist once `wal -i` has run.
 
 ################################################################################
 # SERVICES & PERMISSIONS
@@ -485,7 +483,7 @@ echo ""
 _row() { printf "    ${BGRN}✓${RST}  %-36s${DIM}%s${RST}\n" "$1" "$2"; }
 _row "system updated"                        "pacman -Syu"
 _row "${#ALL_PACKAGES[@]} packages"          "pacman"
-_row "yay · pywal16 · pywalfox"             "AUR"
+_row "yay · pywal16 · quickshell"           "AUR"
 _row "dotfiles deployed"                     "~/.config/*"
 _row "gpu environment"                       "hypr/gpu-env.conf"
 _row "gtk3 & gtk4 dark theme"               "Adwaita-dark"
