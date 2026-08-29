@@ -242,9 +242,9 @@ else
     print_ok "yay already present"
 fi
 
-sudo -u "$USER_NAME" yay -S --noconfirm python-pywal16 nordzy-cursors localsend-bin quickshell-git \
+sudo -u "$USER_NAME" yay -S --noconfirm python-pywal16 localsend-bin quickshell-git \
     > /tmp/hypr_install_log 2>&1 &
-spinner "$!" "Installing pywal16, localsend, nordzy cursors, and quickshell"
+spinner "$!" "Installing pywal16, localsend, and quickshell"
 wait $! || print_err "AUR install failed  →  /tmp/hypr_install_log"
 print_ok "AUR packages installed"
 
