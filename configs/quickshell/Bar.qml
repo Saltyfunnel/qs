@@ -43,17 +43,74 @@ PanelWindow {
         border.color: Colors.c(1)
         border.width: 2
 
+        // Smoothly animate total bar width when children expand
+        Behavior on implicitWidth {
+            NumberAnimation { duration: 250; easing.type: Easing.OutCubic }
+        }
+
         RowLayout {
             id: content
             anchors.centerIn: parent
             spacing: 6
 
             Workspaces {}
+
             Pill { visible: mediaContent.implicitWidth > 0; Media { id: mediaContent } }
             Clock {}
-            Pill { AppLauncher {} }
-            Pill { Wallpaper {} }
-            Pill { Screenshot {} }
+
+            // Example Slide-out Drawer for Utility Apps/Actions
+            Pill {
+                id: drawerPill
+                property bool expanded: false
+
+                // Track total width based on expanded state
+                implicitWidth: drawerRow.implicitWidth + 12
+
+                Behavior on implicitWidth {
+                    NumberAnimation { duration: 250; easing.type: Easing.OutCubic }
+                }
+
+                RowLayout {
+                    id: drawerRow
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 4
+
+                    // Toggle button to trigger slide-out
+                    Text {
+                        text: drawerPill.expanded ? "󰅃" : "󰅀" // Replace with preferred icon/symbol
+                        color: Colors.fg()
+                        font.pixelSize: 14
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: drawerPill.expanded = !drawerPill.expanded
+                        }
+                    }
+
+                    // Collapsible sliding container
+                    Item {
+                        id: slideOutContainer
+                        implicitHeight: drawerItems.implicitHeight
+                        implicitWidth: drawerPill.expanded ? drawerItems.implicitWidth : 0
+                        clip: true
+
+                        Behavior on implicitWidth {
+                            NumberAnimation { duration: 250; easing.type: Easing.OutCubic }
+                        }
+
+                        RowLayout {
+                            id: drawerItems
+                            spacing: 6
+
+                            AppLauncher {}
+                            Wallpaper {}
+                            Screenshot {}
+                        }
+                    }
+                }
+            }
+
             Pill { visible: updateContent.implicitWidth > 0; Update { id: updateContent } }
             Pill { Monitor {} }
             Pill { visible: netContent.implicitWidth > 0; Network { id: netContent } }
