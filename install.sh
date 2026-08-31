@@ -88,7 +88,7 @@ run_command() {
     eval "$cmd" > /tmp/hypr_install_log 2>&1 &
     local pid=$!
     spinner "$pid" "$desc"
-    wait "$pid" || print_err "Failed: $desc  →  /tmp/hypr_install_log"
+    wait "$pid" || print_err "Failed: $desc  → Check /tmp/hypr_install_log"
     print_ok "$desc"
 }
 
@@ -188,12 +188,19 @@ run_command "pacman -S --noconfirm --needed ${ALL_PACKAGES[*]}" \
 print_phase "AUR packages"
 
 if ! command -v yay &>/dev/null; then
-    run_command "rm -rf /tmp/yay && sudo -u $USER_NAME git clone https://aur.archlinux.org/yay.git /tmp/yay && cd /tmp/yay && sudo -u $USER_NAME makepkg -si --noconfirm" \
-        "Building and installing yay"
+    BUILD_YAY_CMD="
+    rm -rf /tmp/yay && \
+    sudo -u '$USER_NAME' git clone https://aur.archlinux.org/yay.git /tmp/yay && \
+    cd /tmp/yay && \
+    sudo -u '$USER_NAME' makepkg -si --noconfirm
+    "
+    run_command "$BUILD_YAY_CMD" "Building and installing yay"
 fi
 
-run_command "sudo -u $USER_NAME yay -S --noconfirm python-pywal16 localsend-bin quickshell-git" \
-    "Installing pywal16, localsend, quickshell"
+INSTALL_AUR_CMD="
+sudo -u '$USER_NAME' yay -S --noconfirm --needed python-pywal16 localsend-bin quickshell-git
+"
+run_command "$INSTALL_AUR_CMD" "Installing pywal16, localsend, quickshell"
 
 ################################################################################
 # DIRECTORY STRUCTURE
