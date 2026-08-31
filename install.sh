@@ -185,7 +185,7 @@ UTILITY_PACKAGES=(
 FILE_PACKAGES=(
     thunar thunar-volman thunar-archive-plugin tumbler ffmpegthumbnailer file-roller exo
 )
-APP_PACKAGES=(firefox mpv imv pavucontrol btop gnome-disk-utility steam)
+APP_PACKAGES=(firefox celluloid imv pavucontrol btop gnome-disk-utility steam)
 DEV_PACKAGES=(git base-devel wget curl nano jq)
 FONT_PACKAGES=(ttf-jetbrains-mono-nerd ttf-hack-nerd ttf-iosevka-nerd ttf-cascadia-code-nerd)
 MEDIA_PACKAGES=(poppler imagemagick ffmpeg chafa)
