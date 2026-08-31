@@ -8,9 +8,8 @@ import QtQuick.Layouts
 PanelWindow {
     id: bar
     anchors.top: true
-    anchors.left: true
-    anchors.right: true
-    implicitHeight: 38
+    implicitHeight: 40
+    margins.top: 6
     color: "transparent"
     exclusionMode: ExclusionMode.Auto
 
@@ -32,50 +31,41 @@ PanelWindow {
     property var sink: Pipewire.defaultAudioSink
     PwObjectTracker { objects: [bar.sink] }
 
-    Item {
-        id: barContent
-        anchors.fill: parent
+    implicitWidth: megaPill.implicitWidth + 16
 
-        // ---- LEFT MODULES ----
+    Rectangle {
+        id: megaPill
+        anchors.centerIn: parent
+        implicitWidth: content.implicitWidth + 20
+        implicitHeight: 34
+        radius: 17
+        color: Colors.bg()
+        border.color: Colors.c(1)
+        border.width: 2
+
         RowLayout {
-            anchors.left: parent.left
-            anchors.verticalCenter: parent.verticalCenter
-            anchors.leftMargin: 4
-            spacing: 4
-            AppLauncher {}
-            Workspaces {}
-            Pill { visible: trayContent.implicitWidth > 0; Tray { id: trayContent } }
-            Pill {
-                visible: mediaContent.implicitWidth > 0
-                Media { id: mediaContent }
-            }
-        }
-
-        // ---- CENTER MODULE ----
-        Clock {
+            id: content
             anchors.centerIn: parent
-        }
+            spacing: 6
 
-        // ---- RIGHT MODULES ----
-        RowLayout {
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            anchors.rightMargin: 4
-            spacing: 4
-             Pill { visible: updateContent.implicitWidth > 0; Update { id: updateContent } }
-            Pill { Screenshot {} }
+            Workspaces {}
+            Pill { visible: mediaContent.implicitWidth > 0; Media { id: mediaContent } }
+            Clock {}
+            Pill { AppLauncher {} }
             Pill { Wallpaper {} }
-            Pill { SystemInfo {} }
-            Pill { visible: monitorContent.implicitWidth > 0; Monitor { id: monitorContent } }
+            Pill { Screenshot {} }
+            Pill { visible: updateContent.implicitWidth > 0; Update { id: updateContent } }
+            Pill { Monitor {} }
             Pill { visible: netContent.implicitWidth > 0; Network { id: netContent } }
             Pill { visible: btContent.implicitWidth > 0; Bluetooth { id: btContent } }
             Pill { Audio { sink: bar.sink } }
             Pill { visible: powerContent.visible; Power { id: powerContent } }
+            Pill { visible: trayContent.implicitWidth > 0; Tray { id: trayContent } }
+            Pill { SystemInfo {} }
             Pill { Session {} }
         }
     }
 
-    // Full-screen transparent overlay to capture outside clicks
     PanelWindow {
         id: dismissOverlay
         anchors.top: true
