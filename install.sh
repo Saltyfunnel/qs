@@ -160,7 +160,6 @@ elif echo "$GPU_INFO" | grep -qi amd; then
         "Installing AMD drivers & Vulkan support"
 elif echo "$GPU_INFO" | grep -qi intel; then
     echo -e "    ${BBLK}gpu${RST}    ${WHT}Intel${RST}"
-    run_command "pacman -Sy --noconfirm" "Syncing repositories"
     run_command "pacman -S --noconfirm --needed mesa lib32-mesa vulkan-intel lib32-vulkan-intel linux-headers" \
         "Installing Intel drivers & Vulkan support"
 else
@@ -287,15 +286,13 @@ OLD_SYMLINKS=(
 for s in "${OLD_SYMLINKS[@]}"; do sudo -u "$USER_NAME" rm -f "$s" 2>/dev/null || true; done
 print_ok "Stale symlinks & conflicting files cleared"
 
-[[ -d "$CONFIGS_SRC/hypr"                   ]] && run_command "sudo -u $USER_NAME cp -rf '$CONFIGS_SRC/hypr/'* '$CONFIG_DIR/hypr/'"                               "Hyprland config"
-[[ -d "$CONFIGS_SRC/quickshell"              ]] && run_command "sudo -u $USER_NAME cp -rf '$CONFIGS_SRC/quickshell/'* '$CONFIG_DIR/quickshell/'"                  "Quickshell config"
-[[ -f "$CONFIGS_SRC/kitty/kitty.conf"        ]] && run_command "sudo -u $USER_NAME cp '$CONFIGS_SRC/kitty/kitty.conf' '$CONFIG_DIR/kitty/kitty.conf'"             "Kitty config"
+[[ -d "$CONFIGS_SRC/hypr"                    ]] && run_command "sudo -u $USER_NAME cp -rf '$CONFIGS_SRC/hypr/'* '$CONFIG_DIR/hypr/'"                               "Hyprland config"
+[[ -d "$CONFIGS_SRC/quickshell"              ]] && run_command "sudo -u $USER_NAME cp -rf '$CONFIGS_SRC/quickshell/'* '$CONFIG_DIR/quickshell/'"                   "Quickshell config"
+[[ -f "$CONFIGS_SRC/kitty/kitty.conf"        ]] && run_command "sudo -u $USER_NAME cp '$CONFIGS_SRC/kitty/kitty.conf' '$CONFIG_DIR/kitty/kitty.conf'"              "Kitty config"
 [[ -f "$CONFIGS_SRC/fastfetch/config.jsonc"  ]] && run_command "sudo -u $USER_NAME cp '$CONFIGS_SRC/fastfetch/config.jsonc' '$CONFIG_DIR/fastfetch/config.jsonc'" "Fastfetch config"
 [[ -f "$CONFIGS_SRC/starship/starship.toml"  ]] && run_command "sudo -u $USER_NAME cp '$CONFIGS_SRC/starship/starship.toml' '$CONFIG_DIR/starship.toml'"          "Starship config"
 [[ -f "$CONFIGS_SRC/btop/btop.conf"          ]] && run_command "sudo -u $USER_NAME cp '$CONFIGS_SRC/btop/btop.conf' '$CONFIG_DIR/btop/btop.conf'"                "btop config"
-[[ -d "$CONFIGS_SRC/wal/templates"           ]] && run_command "sudo -u $USER_NAME cp -rf '$CONFIGS_SRC/wal/templates/'* '$CONFIG_DIR/wal/templates/'"           "pywal templates"
-
-# mako/config is intentionally NOT copied — managed by pywal symlink
+[[ -d "$CONFIGS_SRC/wal/templates"            ]] && run_command "sudo -u $USER_NAME cp -rf '$CONFIGS_SRC/wal/templates/'* '$CONFIG_DIR/wal/templates/'"            "pywal templates"
 
 # GTK dark theme
 sudo -u "$USER_NAME" bash -c "cat > '$CONFIG_DIR/gtk-3.0/settings.ini' << 'EOF'
@@ -453,17 +450,14 @@ print_phase "Pywal symlinks"
     sudo -u "$USER_NAME" ln -sf "$WAL_CACHE/colors-zed.json" "$CONFIG_DIR/zed/themes/zed.json" && \
     print_ok "zed/themes/zed.json"
 
-# Quickshell reads ~/.cache/wal/colors.json directly at runtime (Colors.qml) —
-# no template/symlink needed, it just needs to exist once `wal -i` has run.
-
 ################################################################################
 # SERVICES & PERMISSIONS
 ################################################################################
 
 print_phase "Services & permissions"
 
-systemctl enable ly@tty2.service        2>/dev/null && print_ok "ly enabled"             || true
-systemctl enable bluetooth.service      2>/dev/null && print_ok "bluetooth enabled"      || true
+systemctl enable ly@tty2.service        2>/dev/null && print_ok "ly enabled"              || true
+systemctl enable bluetooth.service      2>/dev/null && print_ok "bluetooth enabled"       || true
 systemctl enable NetworkManager.service 2>/dev/null && print_ok "NetworkManager enabled" || true
 
 chown -R "$USER_NAME:$USER_NAME" "$CONFIG_DIR" "$CACHE_DIR" "$USER_HOME/Pictures" "$USER_HOME/.local" 2>/dev/null || true
@@ -485,14 +479,6 @@ center "${BCYN}│                                                             �
 center "${BCYN}╰─────────────────────────────────────────────────────────────╯${RST}"
 echo ""
 echo ""
-
-# Initial Pywal generation step
-FIRST_WALL=$(find "$USER_HOME/Pictures/Wallpapers" -type f \( -name "*.jpg" -o -name "*.png" -o -name "*.webp" \) 2>/dev/null | head -n 1 || true)
-
-if [[ -n "$FIRST_WALL" ]]; then
-    run_command "sudo -u $USER_NAME wal -i '$FIRST_WALL' -q" "Generating initial pywal palette"
-    echo ""
-fi
 
 center "${DIM}All packages installed, dotfiles deployed, and services enabled.${RST}"
 echo ""
