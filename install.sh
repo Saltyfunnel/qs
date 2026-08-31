@@ -476,52 +476,40 @@ print_ok "Ownership set"
 clear
 print_banner
 
-center "${BLD}${BGRN}installation complete${RST}"
+echo ""
+echo ""
+center "${BCYN}╭─────────────────────────────────────────────────────────────╮${RST}"
+center "${BCYN}│                                                             │${RST}"
+center "${BCYN}│         ${BLD}${BGRN}✦  H Y P R L A N D   I N S T A L L E D  ✦${RST}${BCYN}         │${RST}"
+center "${BCYN}│                                                             │${RST}"
+center "${BCYN}╰─────────────────────────────────────────────────────────────╯${RST}"
 echo ""
 echo ""
 
-_row() { printf "    ${BGRN}✓${RST}  %-36s${DIM}%s${RST}\n" "$1" "$2"; }
-_row "system updated"                        "pacman -Syu"
-_row "${#ALL_PACKAGES[@]} packages"          "pacman"
-_row "yay · pywal16 · quickshell"           "AUR"
-_row "dotfiles deployed"                     "~/.config/*"
-_row "gpu environment"                       "hypr/gpu-env.conf"
-_row "gtk3 & gtk4 dark theme"               "Adwaita-dark"
-_row "colloid-dynamic icons"                 "~/.local/share/icons"
-_row "pywal symlinks"                        "wal → cache"
-_row "zed theme"                             "zed/themes/zed.json"
-_row "ly · bluetooth · NetworkManager"      "systemctl enable"
+# Initial Pywal generation step
+FIRST_WALL=$(find "$USER_HOME/Pictures/Wallpapers" -type f \( -name "*.jpg" -o -name "*.png" -o -name "*.webp" \) 2>/dev/null | head -n 1 || true)
 
+if [[ -n "$FIRST_WALL" ]]; then
+    run_command "sudo -u $USER_NAME wal -i '$FIRST_WALL' -q" "Generating initial pywal palette"
+    echo ""
+fi
+
+center "${DIM}All packages installed, dotfiles deployed, and services enabled.${RST}"
 echo ""
 hr
 echo ""
 
-echo -e "    ${BLD}next${RST}"
-echo ""
-echo -e "    ${BCYN}1${RST}  ${DIM}reboot${RST}                    ${BBLK}sudo reboot${RST}"
-echo -e "    ${BCYN}2${RST}  ${DIM}select session at ly${RST}       ${BBLK}Hyprland${RST}"
-echo -e "    ${BCYN}3${RST}  ${DIM}set your wallpaper${RST}         ${BBLK}wal -i ~/Pictures/Wallpapers/<img>${RST}"
-
-echo ""
-hr
+read -rp "    $(echo -e "${BYLW}${BLD}Reboot system now?${RST} [y/N]: ")" REBOOT_CHOICE
 echo ""
 
-_bind() { printf "    ${BBLK}%-22s${RST}${DIM}%s${RST}\n" "$1" "$2"; }
-echo -e "    ${BLD}bindings${RST}"
-echo ""
-_bind "super + return"        "terminal"
-_bind "super + d"             "launcher"
-_bind "super + q"             "close window"
-_bind "super + f"             "file manager"
-_bind "super + w"             "wallpaper picker"
-_bind "super + b / c / i"    "browser · editor · monitor"
-_bind "super + v"             "toggle float"
-_bind "super + h/j/k/l"      "focus ← ↓ ↑ →"
-_bind "super + [1–5]"         "switch workspace"
-_bind "super+shift + [1–5]"  "move to workspace"
-
-echo ""
-hr
-echo ""
-center "${DIM}${BBLK}happy ricing${RST}"
-echo ""
+if [[ "$REBOOT_CHOICE" =~ ^[Yy]$ ]]; then
+    echo ""
+    center "${BLD}${BCYN}Rebooting... Enjoy your setup!${RST}"
+    echo ""
+    sleep 1.5
+    reboot
+else
+    echo ""
+    center "${DIM}${BBLK}Setup complete. Run 'sudo reboot' whenever you're ready.${RST}"
+    echo ""
+fi
