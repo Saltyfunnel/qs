@@ -1,7 +1,7 @@
 #!/bin/bash
 ################################################################################
-# Hyprland Installer - 2026 Edition
-# Unified installer for AMD/Nvidia/Intel GPUs with automatic configuration
+# Hyprland Installer - Minimal Output Edition
+# Unified installer for AMD/Nvidia/Intel GPUs with simplified progress output
 ################################################################################
 
 set -euo pipefail
@@ -48,7 +48,7 @@ spinner() {
     local i=0
     tput civis 2>/dev/null || true
     while kill -0 "$pid" 2>/dev/null; do
-        printf "\r    ${BCYN}${frames[$i]}${RST}  ${DIM}${msg}${RST}  "
+        printf "\r    ${BCYN}${frames[$i]}${RST}  ${DIM}${msg}${RST}\033[K"
         i=$(( (i + 1) % ${#frames[@]} ))
         sleep 0.07
     done
@@ -77,19 +77,14 @@ print_phase() {
     local todo_blocks=$(( 20 - done_blocks ))
     local bar="${BCYN}$(printf '%0.s▪' $(seq 1 $done_blocks))${RST}${BBLK}$(printf '%0.s▫' $(seq 1 $todo_blocks))${RST}"
 
-    echo ""
     echo -e "  ${bar}  ${BLD}${BWHT}${title}${RST}  ${BBLK}${pct}%${RST}"
-    echo ""
 }
 
-print_ok()      { echo -e "    ${BGRN}✓${RST}  $1"; }
-print_err()     { echo -e "\n    ${BRED}✗  ${BLD}$1${RST}\n" >&2; exit 1; }
-print_info()    { echo -e "    ${BBLK}↳${RST}  ${DIM}$1${RST}"; }
-print_item()    { echo -e "    ${BBLK}•${RST}  $1"; }
+print_ok()   { printf "\r    ${BGRN}✓${RST}  ${DIM}%s${RST}\033[K\n\n" "$1"; }
+print_err()  { echo -e "\n    ${BRED}✗  ${BLD}$1${RST}\n" >&2; exit 1; }
 
 run_command() {
     local cmd="$1" desc="$2"
-    print_info "$desc"
     eval "$cmd" > /tmp/hypr_install_log 2>&1 &
     local pid=$!
     spinner "$pid" "$desc"
@@ -121,9 +116,7 @@ echo -e "    ${BBLK}home${RST}    ${WHT}${USER_HOME}${RST}"
 echo -e "    ${BBLK}repo${RST}    ${WHT}${REPO_ROOT}${RST}"
 echo ""
 
-echo -e "    ${BYLW}${BLD}sudo password required${RST}  ${BBLK}(cached for the session)${RST}"
-echo ""
-read -r -s -p "    $(echo -e "${BCYN}password:${RST} ")" USER_PASS
+read -r -s -p "    $(echo -e "${BCYN}sudo password:${RST} ")" USER_PASS
 echo ""
 
 if ! echo "$USER_PASS" | su -c "true" "$USER_NAME" 2>/dev/null; then
@@ -136,9 +129,8 @@ chmod 0440 "$SUDOERS_TMP"
 trap 'rm -f "$SUDOERS_TMP"; echo ""' EXIT
 
 echo ""
-print_ok "Credentials accepted"
-echo ""
 hr
+echo ""
 
 ################################################################################
 # SYSTEM UPDATE & DRIVERS
@@ -146,24 +138,19 @@ hr
 
 print_phase "System update & driver detection"
 
-run_command "pacman -Syu --noconfirm" "Synchronising package databases"
+run_command "pacman -Syu --noconfirm" "Updating package databases"
 
 GPU_INFO=$(lspci | grep -Ei "VGA|3D" || true)
 
 if echo "$GPU_INFO" | grep -qi nvidia; then
-    echo -e "    ${BBLK}gpu${RST}    ${WHT}NVIDIA${RST}"
     run_command "pacman -S --noconfirm --needed nvidia-open-dkms nvidia-utils lib32-nvidia-utils linux-headers" \
-        "Installing NVIDIA open-source drivers"
+        "Installing NVIDIA drivers"
 elif echo "$GPU_INFO" | grep -qi amd; then
-    echo -e "    ${BBLK}gpu${RST}    ${WHT}AMD${RST}"
     run_command "pacman -S --noconfirm --needed xf86-video-amdgpu mesa vulkan-radeon lib32-vulkan-radeon linux-headers" \
-        "Installing AMD drivers & Vulkan support"
+        "Installing AMD drivers"
 elif echo "$GPU_INFO" | grep -qi intel; then
-    echo -e "    ${BBLK}gpu${RST}    ${WHT}Intel${RST}"
     run_command "pacman -S --noconfirm --needed mesa lib32-mesa vulkan-intel lib32-vulkan-intel linux-headers" \
-        "Installing Intel drivers & Vulkan support"
-else
-    echo -e "    ${BBLK}gpu${RST}    ${WHT}generic${RST}"
+        "Installing Intel drivers"
 fi
 
 ################################################################################
@@ -172,18 +159,10 @@ fi
 
 print_phase "Package Installation"
 
-CORE_PACKAGES=(
-    hyprland awww mako zed ly pacman-contrib
-    xdg-desktop-portal-hyprland
-)
+CORE_PACKAGES=(hyprland awww mako zed ly pacman-contrib xdg-desktop-portal-hyprland)
 TERMINAL_PACKAGES=(kitty starship fastfetch)
-UTILITY_PACKAGES=(
-    grim slurp wl-clipboard polkit-kde-agent brightnessctl
-    bluez bluez-utils blueman udiskie udisks2 gvfs networkmanager
-)
-FILE_PACKAGES=(
-    thunar thunar-volman thunar-archive-plugin tumbler ffmpegthumbnailer file-roller exo
-)
+UTILITY_PACKAGES=(grim slurp wl-clipboard polkit-kde-agent brightnessctl bluez bluez-utils blueman udiskie udisks2 gvfs networkmanager)
+FILE_PACKAGES=(thunar thunar-volman thunar-archive-plugin tumbler ffmpegthumbnailer file-roller exo)
 APP_PACKAGES=(firefox celluloid imv pavucontrol btop gnome-disk-utility steam)
 DEV_PACKAGES=(git base-devel wget curl nano jq)
 FONT_PACKAGES=(ttf-jetbrains-mono-nerd ttf-hack-nerd ttf-iosevka-nerd ttf-cascadia-code-nerd)
@@ -199,28 +178,8 @@ ALL_PACKAGES=(
     "${PYTHON_PACKAGES[@]}" "${QT_PACKAGES[@]}"
 )
 
-echo ""
-declare -A GROUP_LABELS=(
-    ["Core WM"]="${CORE_PACKAGES[*]}"
-    ["Terminal"]="${TERMINAL_PACKAGES[*]}"
-    ["Utilities"]="${UTILITY_PACKAGES[*]}"
-    ["Files"]="${FILE_PACKAGES[*]}"
-    ["Apps"]="${APP_PACKAGES[*]}"
-    ["Dev Tools"]="${DEV_PACKAGES[*]}"
-    ["Fonts"]="${FONT_PACKAGES[*]}"
-    ["Media"]="${MEDIA_PACKAGES[*]}"
-    ["Archives"]="${COMPRESSION_PACKAGES[*]}"
-    ["Python"]="${PYTHON_PACKAGES[*]}"
-    ["Qt/Wayland"]="${QT_PACKAGES[*]}"
-)
-
-for label in "Core WM" "Terminal" "Utilities" "Files" "Apps" "Dev Tools" "Fonts" "Media" "Archives" "Python" "Qt/Wayland"; do
-    echo -e "  ${BBLU}${label}${RST}  ${DIM}${GROUP_LABELS[$label]}${RST}"
-done
-echo ""
-
 run_command "pacman -S --noconfirm --needed ${ALL_PACKAGES[*]}" \
-    "Installing all packages  (${#ALL_PACKAGES[@]} total)"
+    "Installing base system packages"
 
 ################################################################################
 # AUR HELPER & PACKAGES
@@ -229,23 +188,12 @@ run_command "pacman -S --noconfirm --needed ${ALL_PACKAGES[*]}" \
 print_phase "AUR packages"
 
 if ! command -v yay &>/dev/null; then
-    run_command "rm -rf /tmp/yay" "Cleaning build directory"
-    run_command "sudo -u $USER_NAME git clone https://aur.archlinux.org/yay.git /tmp/yay" \
-        "Cloning yay"
-    (cd /tmp/yay && sudo -u "$USER_NAME" makepkg -si --noconfirm) \
-        > /tmp/hypr_install_log 2>&1 &
-    spinner "$!" "Compiling yay"
-    wait $! || print_err "Yay build failed  →  /tmp/hypr_install_log"
-    print_ok "yay installed"
-else
-    print_ok "yay already present"
+    run_command "rm -rf /tmp/yay && sudo -u $USER_NAME git clone https://aur.archlinux.org/yay.git /tmp/yay && cd /tmp/yay && sudo -u $USER_NAME makepkg -si --noconfirm" \
+        "Building and installing yay"
 fi
 
-sudo -u "$USER_NAME" yay -S --noconfirm python-pywal16 localsend-bin quickshell-git \
-    > /tmp/hypr_install_log 2>&1 &
-spinner "$!" "Installing pywal16, localsend, and quickshell"
-wait $! || print_err "AUR install failed  →  /tmp/hypr_install_log"
-print_ok "AUR packages installed"
+run_command "sudo -u $USER_NAME yay -S --noconfirm python-pywal16 localsend-bin quickshell-git" \
+    "Installing pywal16, localsend, quickshell"
 
 ################################################################################
 # DIRECTORY STRUCTURE
@@ -254,23 +202,15 @@ print_ok "AUR packages installed"
 print_phase "Directory Structure"
 
 CONFIG_DIRS=(
-    "$CONFIG_DIR/hypr"    "$CONFIG_DIR/quickshell"
-    "$CONFIG_DIR/kitty"   "$CONFIG_DIR/fastfetch"
-    "$CONFIG_DIR/mako"    "$CONFIG_DIR/scripts"
-    "$CONFIG_DIR/wal/templates"  "$CONFIG_DIR/btop"
-    "$CONFIG_DIR/gtk-3.0" "$CONFIG_DIR/gtk-4.0"
-    "$CONFIG_DIR/zed/themes"
+    "$CONFIG_DIR/hypr" "$CONFIG_DIR/quickshell" "$CONFIG_DIR/kitty"
+    "$CONFIG_DIR/fastfetch" "$CONFIG_DIR/mako" "$CONFIG_DIR/scripts"
+    "$CONFIG_DIR/wal/templates" "$CONFIG_DIR/btop" "$CONFIG_DIR/gtk-3.0"
+    "$CONFIG_DIR/gtk-4.0" "$CONFIG_DIR/zed/themes" "$WAL_CACHE"
+    "$USER_HOME/Pictures/Wallpapers" "$USER_HOME/.local/share/icons"
 )
 
-for dir in "${CONFIG_DIRS[@]}"; do
-    sudo -u "$USER_NAME" mkdir -p "$dir"
-    print_item "${DIM}$dir${RST}"
-done
-
-sudo -u "$USER_NAME" mkdir -p "$WAL_CACHE"
-sudo -u "$USER_NAME" mkdir -p "$USER_HOME/Pictures/Wallpapers"
-sudo -u "$USER_NAME" mkdir -p "$USER_HOME/.local/share/icons"
-print_ok "Directory tree created"
+run_command "mkdir -p ${CONFIG_DIRS[*]} && chown -R $USER_NAME:$USER_NAME ${CONFIG_DIRS[*]}" \
+    "Creating system directories"
 
 ################################################################################
 # CONFIGURATION FILES
@@ -278,38 +218,32 @@ print_ok "Directory tree created"
 
 print_phase "Configuration files"
 
-OLD_SYMLINKS=(
-    "$CONFIG_DIR/kitty/kitty.conf"
-    "$CONFIG_DIR/mako/config"
-    "$CONFIG_DIR/zed/themes/zed.json"
-)
-for s in "${OLD_SYMLINKS[@]}"; do sudo -u "$USER_NAME" rm -f "$s" 2>/dev/null || true; done
-print_ok "Stale symlinks & conflicting files cleared"
+SETUP_CONFIGS_CMD="
+sudo -u $USER_NAME rm -f '$CONFIG_DIR/kitty/kitty.conf' '$CONFIG_DIR/mako/config' '$CONFIG_DIR/zed/themes/zed.json' 2>/dev/null || true
+[[ -d '$CONFIGS_SRC/hypr' ]] && sudo -u $USER_NAME cp -rf '$CONFIGS_SRC/hypr/'* '$CONFIG_DIR/hypr/'
+[[ -d '$CONFIGS_SRC/quickshell' ]] && sudo -u $USER_NAME cp -rf '$CONFIGS_SRC/quickshell/'* '$CONFIG_DIR/quickshell/'
+[[ -f '$CONFIGS_SRC/kitty/kitty.conf' ]] && sudo -u $USER_NAME cp '$CONFIGS_SRC/kitty/kitty.conf' '$CONFIG_DIR/kitty/kitty.conf'
+[[ -f '$CONFIGS_SRC/fastfetch/config.jsonc' ]] && sudo -u $USER_NAME cp '$CONFIGS_SRC/fastfetch/config.jsonc' '$CONFIG_DIR/fastfetch/config.jsonc'
+[[ -f '$CONFIGS_SRC/starship/starship.toml' ]] && sudo -u $USER_NAME cp '$CONFIGS_SRC/starship/starship.toml' '$CONFIG_DIR/starship.toml'
+[[ -f '$CONFIGS_SRC/btop/btop.conf' ]] && sudo -u $USER_NAME cp '$CONFIGS_SRC/btop/btop.conf' '$CONFIG_DIR/btop/btop.conf'
+[[ -d '$CONFIGS_SRC/wal/templates' ]] && sudo -u $USER_NAME cp -rf '$CONFIGS_SRC/wal/templates/'* '$CONFIG_DIR/wal/templates/'
 
-[[ -d "$CONFIGS_SRC/hypr"                    ]] && run_command "sudo -u $USER_NAME cp -rf '$CONFIGS_SRC/hypr/'* '$CONFIG_DIR/hypr/'"                               "Hyprland config"
-[[ -d "$CONFIGS_SRC/quickshell"              ]] && run_command "sudo -u $USER_NAME cp -rf '$CONFIGS_SRC/quickshell/'* '$CONFIG_DIR/quickshell/'"                   "Quickshell config"
-[[ -f "$CONFIGS_SRC/kitty/kitty.conf"        ]] && run_command "sudo -u $USER_NAME cp '$CONFIGS_SRC/kitty/kitty.conf' '$CONFIG_DIR/kitty/kitty.conf'"              "Kitty config"
-[[ -f "$CONFIGS_SRC/fastfetch/config.jsonc"  ]] && run_command "sudo -u $USER_NAME cp '$CONFIGS_SRC/fastfetch/config.jsonc' '$CONFIG_DIR/fastfetch/config.jsonc'" "Fastfetch config"
-[[ -f "$CONFIGS_SRC/starship/starship.toml"  ]] && run_command "sudo -u $USER_NAME cp '$CONFIGS_SRC/starship/starship.toml' '$CONFIG_DIR/starship.toml'"          "Starship config"
-[[ -f "$CONFIGS_SRC/btop/btop.conf"          ]] && run_command "sudo -u $USER_NAME cp '$CONFIGS_SRC/btop/btop.conf' '$CONFIG_DIR/btop/btop.conf'"                "btop config"
-[[ -d "$CONFIGS_SRC/wal/templates"            ]] && run_command "sudo -u $USER_NAME cp -rf '$CONFIGS_SRC/wal/templates/'* '$CONFIG_DIR/wal/templates/'"            "pywal templates"
-
-# GTK dark theme
-sudo -u "$USER_NAME" bash -c "cat > '$CONFIG_DIR/gtk-3.0/settings.ini' << 'EOF'
+sudo -u $USER_NAME bash -c \"cat > '$CONFIG_DIR/gtk-3.0/settings.ini' << 'EOF'
 [Settings]
 gtk-icon-theme-name=Colloid-Dynamic-Dark
 gtk-theme-name=Adwaita-dark
 gtk-application-prefer-dark-theme=1
-EOF"
-print_ok "GTK3 dark theme configured"
+EOF\"
 
-sudo -u "$USER_NAME" bash -c "cat > '$CONFIG_DIR/gtk-4.0/settings.ini' << 'EOF'
+sudo -u $USER_NAME bash -c \"cat > '$CONFIG_DIR/gtk-4.0/settings.ini' << 'EOF'
 [Settings]
 gtk-icon-theme-name=Colloid-Dynamic-Dark
 gtk-theme-name=Adwaita-dark
 gtk-application-prefer-dark-theme=1
-EOF"
-print_ok "GTK4 dark theme configured"
+EOF\"
+"
+
+run_command "$SETUP_CONFIGS_CMD" "Deploying desktop configurations"
 
 ################################################################################
 # GPU-SPECIFIC ENVIRONMENT
@@ -318,46 +252,31 @@ print_ok "GTK4 dark theme configured"
 print_phase "GPU environment"
 
 GPU_ENV_FILE="$CONFIG_DIR/hypr/gpu-env.lua"
-sudo -u "$USER_NAME" bash -c "echo '-- GPU environment — auto-generated' > '$GPU_ENV_FILE'"
+GPU_CMD="sudo -u $USER_NAME bash -c \"echo '-- GPU environment' > '$GPU_ENV_FILE'\""
 
 if echo "$GPU_INFO" | grep -qi nvidia; then
-    sudo -u "$USER_NAME" cat >> "$GPU_ENV_FILE" << 'EOF'
+    GPU_CMD+=" && sudo -u $USER_NAME bash -c \"cat >> '$GPU_ENV_FILE' << 'EOF'
 return {
-  LIBVA_DRIVER_NAME         = "nvidia",
-  XDG_SESSION_TYPE          = "wayland",
-  __GLX_VENDOR_LIBRARY_NAME = "nvidia",
-  GBM_BACKEND               = "nvidia-drm",
-  WLR_NO_HARDWARE_CURSORS   = "1",
-  __GL_GSYNC_ALLOWED        = "1",
-  __GL_VRR_ALLOWED          = "1",
-  QT_QPA_PLATFORM           = "wayland",
+  LIBVA_DRIVER_NAME         = 'nvidia',
+  XDG_SESSION_TYPE          = 'wayland',
+  __GLX_VENDOR_LIBRARY_NAME = 'nvidia',
+  GBM_BACKEND               = 'nvidia-drm',
+  WLR_NO_HARDWARE_CURSORS   = '1',
+  __GL_GSYNC_ALLOWED        = '1',
+  __GL_VRR_ALLOWED          = '1',
+  QT_QPA_PLATFORM           = 'wayland',
 }
-EOF
-elif echo "$GPU_INFO" | grep -qi amd; then
-    sudo -u "$USER_NAME" cat >> "$GPU_ENV_FILE" << 'EOF'
-return {
-  LIBVA_DRIVER_NAME = "radeonsi",
-  XDG_SESSION_TYPE  = "wayland",
-  QT_QPA_PLATFORM   = "wayland",
-}
-EOF
-elif echo "$GPU_INFO" | grep -qi intel; then
-    sudo -u "$USER_NAME" cat >> "$GPU_ENV_FILE" << 'EOF'
-return {
-  LIBVA_DRIVER_NAME = "iHD",
-  XDG_SESSION_TYPE  = "wayland",
-  QT_QPA_PLATFORM   = "wayland",
-}
-EOF
+EOF\""
 else
-    sudo -u "$USER_NAME" cat >> "$GPU_ENV_FILE" << 'EOF'
+    GPU_CMD+=" && sudo -u $USER_NAME bash -c \"cat >> '$GPU_ENV_FILE' << 'EOF'
 return {
-  XDG_SESSION_TYPE = "wayland",
-  QT_QPA_PLATFORM  = "wayland",
+  XDG_SESSION_TYPE = 'wayland',
+  QT_QPA_PLATFORM  = 'wayland',
 }
-EOF
+EOF\""
 fi
-print_ok "GPU env written  →  hypr/gpu-env.lua"
+
+run_command "$GPU_CMD" "Generating GPU profile"
 
 ################################################################################
 # SCRIPTS, WALLPAPERS & SHELL
@@ -365,18 +284,13 @@ print_ok "GPU env written  →  hypr/gpu-env.lua"
 
 print_phase "Scripts, wallpapers & shell"
 
-[[ -d "$SCRIPTS_SRC" ]] && \
-    run_command "sudo -u $USER_NAME cp -rf '$SCRIPTS_SRC/'* '$CONFIG_DIR/scripts/' && chmod +x '$CONFIG_DIR/scripts/'* 2>/dev/null || true" \
-    "User scripts"
-
-[[ -d "$WALLPAPERS_SRC" ]] && \
-    run_command "sudo -u $USER_NAME cp -rf '$WALLPAPERS_SRC/'* '$USER_HOME/Pictures/Wallpapers/'" \
-    "Wallpapers"
-
-sudo -u "$USER_NAME" cat > "$USER_HOME/.bashrc" << 'EOF'
+ASSETS_CMD="
+[[ -d '$SCRIPTS_SRC' ]] && sudo -u $USER_NAME cp -rf '$SCRIPTS_SRC/'* '$CONFIG_DIR/scripts/' && chmod +x '$CONFIG_DIR/scripts/'* 2>/dev/null || true
+[[ -d '$WALLPAPERS_SRC' ]] && sudo -u $USER_NAME cp -rf '$WALLPAPERS_SRC/'* '$USER_HOME/Pictures/Wallpapers/'
+sudo -u $USER_NAME cat > '$USER_HOME/.bashrc' << 'EOF'
 #!/bin/bash
 [[ -f ~/.cache/wal/sequences ]] && cat ~/.cache/wal/sequences
-command -v starship >/dev/null && eval "$(starship init bash)"
+command -v starship >/dev/null && eval \"\$(starship init bash)\"
 command -v fastfetch >/dev/null && fastfetch
 alias ls='ls --color=auto'
 alias ll='ls -lah --color=auto'
@@ -388,7 +302,9 @@ alias rm='rm -i'
 alias mv='mv -i'
 alias cp='cp -i'
 EOF
-print_ok "Shell configured"
+"
+
+run_command "$ASSETS_CMD" "Setting up dotfiles & shell environments"
 
 ################################################################################
 # COLLOID ICON THEME
@@ -397,30 +313,25 @@ print_ok "Shell configured"
 print_phase "Colloid icon theme"
 
 COLLOID_SRC="$CONFIG_DIR/colloid-src"
-if [ ! -d "$COLLOID_SRC" ]; then
-    run_command "sudo -u $USER_NAME git clone --depth 1 https://github.com/Saltyfunnel/colloid.git '$COLLOID_SRC'" \
-        "Cloning Colloid icon theme"
+THEME_CMD="
+if [ ! -d '$COLLOID_SRC' ]; then
+    sudo -u $USER_NAME git clone --depth 1 https://github.com/Saltyfunnel/colloid.git '$COLLOID_SRC'
 fi
+cd '$COLLOID_SRC' && sudo -u $USER_NAME ./install.sh -d '$USER_HOME/.local/share/icons' -n Colloid-Dynamic -s default
+"
 
-(cd "$COLLOID_SRC" && sudo -u "$USER_NAME" ./install.sh \
-    -d "$USER_HOME/.local/share/icons" \
-    -n Colloid-Dynamic \
-    -s default) \
-    > /tmp/hypr_install_log 2>&1 &
-spinner "$!" "Installing Colloid-Dynamic icons"
-wait $! || print_err "Colloid install failed  →  /tmp/hypr_install_log"
-print_ok "Colloid-Dynamic icons installed"
+run_command "$THEME_CMD" "Installing Colloid icon themes"
 
 ################################################################################
-# THUNAR CUSTOM ACTIONS (KITTY)
+# THUNAR & PYWAL SETUP
 ################################################################################
 
-print_phase "Thunar Custom Actions"
+print_phase "Thunar & Pywal linking"
 
-sudo -u "$USER_NAME" mkdir -p "$CONFIG_DIR/Thunar"
-
-sudo -u "$USER_NAME" bash -c "cat > '$CONFIG_DIR/Thunar/uca.xml' << 'EOF'
-<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+INTEGRATION_CMD="
+sudo -u $USER_NAME mkdir -p '$CONFIG_DIR/Thunar'
+sudo -u $USER_NAME bash -c \"cat > '$CONFIG_DIR/Thunar/uca.xml' << 'EOF'
+<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\"?>
 <actions>
 <action>
     <icon>kitty</icon>
@@ -432,23 +343,13 @@ sudo -u "$USER_NAME" bash -c "cat > '$CONFIG_DIR/Thunar/uca.xml' << 'EOF'
     <directories/>
 </action>
 </actions>
-EOF"
+EOF\"
 
-print_ok "Thunar 'Open Kitty Here' action configured"
+[[ -f '$CONFIG_DIR/wal/templates/mako-config' ]] && sudo -u $USER_NAME ln -sf '$WAL_CACHE/mako-config' '$CONFIG_DIR/mako/config' || true
+[[ -f '$CONFIG_DIR/wal/templates/zed.json' ]] && sudo -u $USER_NAME ln -sf '$WAL_CACHE/colors-zed.json' '$CONFIG_DIR/zed/themes/zed.json' || true
+"
 
-################################################################################
-# PYWAL SYMLINKS
-################################################################################
-
-print_phase "Pywal symlinks"
-
-[[ -f "$CONFIG_DIR/wal/templates/mako-config" ]] && \
-    sudo -u "$USER_NAME" ln -sf "$WAL_CACHE/mako-config" "$CONFIG_DIR/mako/config" && \
-    print_ok "mako/config"
-
-[[ -f "$CONFIG_DIR/wal/templates/zed.json" ]] && \
-    sudo -u "$USER_NAME" ln -sf "$WAL_CACHE/colors-zed.json" "$CONFIG_DIR/zed/themes/zed.json" && \
-    print_ok "zed/themes/zed.json"
+run_command "$INTEGRATION_CMD" "Configuring file actions & pywal targets"
 
 ################################################################################
 # SERVICES & PERMISSIONS
@@ -456,12 +357,14 @@ print_phase "Pywal symlinks"
 
 print_phase "Services & permissions"
 
-systemctl enable ly@tty2.service        2>/dev/null && print_ok "ly enabled"              || true
-systemctl enable bluetooth.service      2>/dev/null && print_ok "bluetooth enabled"       || true
-systemctl enable NetworkManager.service 2>/dev/null && print_ok "NetworkManager enabled" || true
+SERVICE_CMD="
+systemctl enable ly@tty2.service 2>/dev/null || true
+systemctl enable bluetooth.service 2>/dev/null || true
+systemctl enable NetworkManager.service 2>/dev/null || true
+chown -R '$USER_NAME:$USER_NAME' '$CONFIG_DIR' '$CACHE_DIR' '$USER_HOME/Pictures' '$USER_HOME/.local' 2>/dev/null || true
+"
 
-chown -R "$USER_NAME:$USER_NAME" "$CONFIG_DIR" "$CACHE_DIR" "$USER_HOME/Pictures" "$USER_HOME/.local" 2>/dev/null || true
-print_ok "Ownership set"
+run_command "$SERVICE_CMD" "Enabling systemd services"
 
 ################################################################################
 # DONE
@@ -471,13 +374,11 @@ clear
 print_banner
 
 echo ""
-echo ""
 center "${BCYN}╭─────────────────────────────────────────────────────────────╮${RST}"
 center "${BCYN}│                                                             │${RST}"
 center "${BCYN}│         ${BLD}${BGRN}✦  H Y P R L A N D   I N S T A L L E D  ✦${RST}${BCYN}         │${RST}"
 center "${BCYN}│                                                             │${RST}"
 center "${BCYN}╰─────────────────────────────────────────────────────────────╯${RST}"
-echo ""
 echo ""
 
 center "${DIM}All packages installed, dotfiles deployed, and services enabled.${RST}"
