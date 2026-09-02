@@ -1,7 +1,6 @@
 import Quickshell
 import Quickshell.Io
 import Quickshell.Hyprland
-import Quickshell.Services.Pipewire
 import QtQuick
 import QtQuick.Layouts
 
@@ -28,9 +27,6 @@ PanelWindow {
         }
     }
 
-    property var sink: Pipewire.defaultAudioSink
-    PwObjectTracker { objects: [bar.sink] }
-
     implicitWidth: megaPill.implicitWidth + 16
 
     Rectangle {
@@ -43,7 +39,6 @@ PanelWindow {
         border.color: Colors.c(1)
         border.width: 2
 
-        // Smoothly animate total bar width when children expand
         Behavior on implicitWidth {
             NumberAnimation { duration: 250; easing.type: Easing.OutCubic }
         }
@@ -54,16 +49,17 @@ PanelWindow {
             spacing: 6
 
             Workspaces {}
+             Pill { visible: trayContent.implicitWidth > 0; Tray { id: trayContent } }
 
-            Pill { visible: mediaContent.implicitWidth > 0; Media { id: mediaContent } }
             Clock {}
 
-            // Example Slide-out Drawer for Utility Apps/Actions
+            // App launcher — Wallpaper and Screenshot moved into ControlCentre, so this
+            // is now a single-item drawer. Simplify to a plain Pill if you'd rather
+            // drop the slide-out entirely.
             Pill {
                 id: drawerPill
                 property bool expanded: false
 
-                // Track total width based on expanded state
                 implicitWidth: drawerRow.implicitWidth + 12
 
                 Behavior on implicitWidth {
@@ -75,9 +71,8 @@ PanelWindow {
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: 4
 
-                    // Toggle button to trigger slide-out
                     Text {
-                        text: drawerPill.expanded ? "󰅃" : "󰅀" // Replace with preferred icon/symbol
+                        text: drawerPill.expanded ? "󰅃" : "󰅀"
                         color: Colors.fg()
                         font.pixelSize: 14
 
@@ -88,7 +83,6 @@ PanelWindow {
                         }
                     }
 
-                    // Collapsible sliding container
                     Item {
                         id: slideOutContainer
                         implicitHeight: drawerItems.implicitHeight
@@ -104,21 +98,12 @@ PanelWindow {
                             spacing: 6
 
                             AppLauncher {}
-                            Wallpaper {}
-                            Screenshot {}
                         }
                     }
                 }
             }
 
-            Pill { visible: updateContent.implicitWidth > 0; Update { id: updateContent } }
-            Pill { Monitor {} }
-            Pill { visible: netContent.implicitWidth > 0; Network { id: netContent } }
-            Pill { visible: btContent.implicitWidth > 0; Bluetooth { id: btContent } }
-            Pill { Audio { sink: bar.sink } }
-            Pill { visible: powerContent.visible; Power { id: powerContent } }
-            Pill { visible: trayContent.implicitWidth > 0; Tray { id: trayContent } }
-            Pill { SystemInfo {} }
+            Pill { ControlCentre {} }
             Pill { Session {} }
         }
     }
