@@ -159,7 +159,7 @@ fi
 
 print_phase "Package Installation"
 
-CORE_PACKAGES=(hyprland awww mako zed ly pacman-contrib xdg-desktop-portal-hyprland)
+CORE_PACKAGES=(hyprland awww mako zed ly upower pacman-contrib xdg-desktop-portal-hyprland)
 TERMINAL_PACKAGES=(kitty starship fastfetch)
 UTILITY_PACKAGES=(grim slurp wl-clipboard polkit-kde-agent brightnessctl bluez bluez-utils blueman udiskie udisks2 gvfs networkmanager)
 FILE_PACKAGES=(thunar thunar-volman thunar-archive-plugin tumbler ffmpegthumbnailer file-roller exo)
