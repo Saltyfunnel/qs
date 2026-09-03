@@ -14,6 +14,43 @@ Item {
 
     property string searchQuery: ""
     property string hoveredShortcutLabel: ""
+    property string currentWallpaperSource: ""
+
+    // Helper script to read pywal's wallpaper directly and create a symlink with a valid extension
+    Process {
+        id: walPathReader
+        command: ["bash", "-c", "
+            WAL_FILE=\"$(cat ~/.cache/wal/wal 2>/dev/null || echo '')\"
+            if [ -z \"$WAL_FILE\" ] || [ ! -f \"$WAL_FILE\" ]; then
+                WAL_FILE=~/.cache/wal/wal
+            fi
+
+            if [ -f \"$WAL_FILE\" ]; then
+                # Link to a path with a clear file extension so Qt can decode it
+                EXT=\"${WAL_FILE##*.}\"
+                [ \"$EXT\" = \"$WAL_FILE\" ] && EXT=\"png\"
+                TARGET=\"/tmp/quickshell_bg.$EXT\"
+
+                ln -sf \"$WAL_FILE\" \"$TARGET\"
+                echo \"file://$TARGET\"
+            fi
+        "]
+        running: false
+
+        stdout: SplitParser {
+            onRead: data => {
+                let cleanUrl = data.trim()
+                if (cleanUrl !== "" && cleanUrl.startsWith("file://")) {
+                    // Update source with cache buster
+                    appLauncherRoot.currentWallpaperSource = cleanUrl + "?t=" + Date.now()
+                }
+            }
+        }
+    }
+
+    Component.onCompleted: {
+        walPathReader.running = true
+    }
 
     function launchCmd(cmd) {
         cmdRunner.command = ["bash", "-c", cmd]
@@ -51,6 +88,11 @@ Item {
             appLauncherRoot.searchQuery = ""
             appLauncherRoot.hoveredShortcutLabel = ""
             searchInput.text = ""
+
+            // Re-read wallpaper in case pywal changed it
+            walPathReader.running = false
+            walPathReader.running = true
+
             bar.togglePopup(appPopup)
             if (appPopup.visible) {
                 searchInput.forceActiveFocus()
@@ -73,21 +115,40 @@ Item {
         Rectangle {
             anchors.fill: parent
             radius: 12
-            color: Colors.bg(0.85)
+            color: "#1a1a1a" // Fallback dark background if wallpaper fails
             border.color: Colors.c(1)
             border.width: 2
             clip: true
+
+            // Wallpaper Image Layer
+            Image {
+                id: bgWallpaper
+                anchors.fill: parent
+                source: appLauncherRoot.currentWallpaperSource
+                fillMode: Image.PreserveAspectCrop
+                asynchronous: false
+                cache: false
+                z: 0
+            }
+
+            // Dark Overlay
+            Rectangle {
+                anchors.fill: parent
+                color: Qt.rgba(0, 0, 0, 0.65)
+                z: 1
+            }
 
             ColumnLayout {
                 anchors.fill: parent
                 anchors.margins: 16
                 spacing: 12
+                z: 2
 
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 38
                     radius: 6
-                    color: Qt.rgba(0, 0, 0, 0.25)
+                    color: Qt.rgba(0, 0, 0, 0.35)
                     border.color: searchInput.activeFocus ? Colors.c(1) : Qt.tint(Colors.c(8), Qt.rgba(0, 0, 0, 0.3))
                     border.width: 1
 
@@ -133,7 +194,7 @@ Item {
                             Layout.fillWidth: true
                             Layout.preferredHeight: 36
                             radius: 6
-                            color: shortcutMouse.containsMouse ? Colors.c(1) : Qt.rgba(0, 0, 0, 0.2)
+                            color: shortcutMouse.containsMouse ? Colors.c(1) : Qt.rgba(0, 0, 0, 0.25)
                             border.color: Colors.c(1)
                             border.width: 1
 
@@ -203,7 +264,7 @@ Item {
                         height: visible ? 46 : 0
                         width: appList.width
                         radius: 6
-                        color: itemMouse.containsMouse ? Qt.tint(Colors.c(1), Qt.rgba(0, 0, 0, 0.3)) : Qt.rgba(0, 0, 0, 0.15)
+                        color: itemMouse.containsMouse ? Qt.tint(Colors.c(1), Qt.rgba(0, 0, 0, 0.3)) : Qt.rgba(0, 0, 0, 0.2)
                         border.color: itemMouse.containsMouse ? Colors.c(1) : "transparent"
                         border.width: 1
 
