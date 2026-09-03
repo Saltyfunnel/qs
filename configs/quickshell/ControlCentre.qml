@@ -296,19 +296,27 @@ Item {
 
     Process {
         id: nearbyFetcher
-        command: ["sh", "-c", "nmcli -t -f active,ssid dev wifi list 2>/dev/null | grep -v '^$'"]
-        stdout: SplitParser {
-            onRead: data => {
-                var lines = data.trim().split("\n").filter(function(e) { return e.length > 0 })
+        command: ["bash", "-c", "nmcli dev wifi rescan 2>/dev/null; nmcli -t -f active,ssid dev wifi list 2>/dev/null"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                var lines = text.trim().split("\n")
                 var known = []
                 var other = []
                 for (var i = 0; i < lines.length; i++) {
-                    var parts = lines[i].split(":")
-                    var isActive = parts[0] === "yes"
-                    var ssid = parts.slice(1).join(":")
+                    var line = lines[i].trim()
+                    if (!line) continue
+                    var idx = line.indexOf(":")
+                    if (idx === -1) continue
+
+                    var isActive = line.substring(0, idx) === "yes"
+                    var ssid = line.substring(idx + 1).trim()
                     if (!ssid) continue
-                    if (isActive) known.push({ ssid: ssid, connected: true })
-                    else if (other.indexOf(ssid) === -1 && !known.some(e => e.ssid === ssid)) other.push(ssid)
+
+                    if (isActive) {
+                        if (!known.some(e => e.ssid === ssid)) known.push({ ssid: ssid, connected: true })
+                    } else {
+                        if (other.indexOf(ssid) === -1 && !known.some(e => e.ssid === ssid)) other.push(ssid)
+                    }
                 }
                 ccRoot.knownNetworks = known
                 ccRoot.otherNetworks = other
