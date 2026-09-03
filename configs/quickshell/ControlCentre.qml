@@ -27,7 +27,7 @@ Item {
         { label: "1920x1080 @ 60Hz",  w: 1920, h: 1080, r: 60 },
         { label: "2560x1440 @ 165Hz", w: 2560, h: 1440, r: 165 },
         { label: "2560x1440 @ 144Hz", w: 2560, h: 1440, r: 144 },
-        { label: "2560x1440 @ 60Hz",  w: 2560, h: 1440, r: 60 }
+        { label: "2560x1440 @ 60Hz",  w: 2560, h: 1080, r: 60 }
     ]
 
     Process {
@@ -83,16 +83,26 @@ Item {
 
     // Power/battery state
     property bool powerExpanded: false
-    readonly property bool hasBattery: UPower.devices.values.some(d => d.type === UPowerDeviceType.Battery) ||
-                                      (batDev !== null && batDev.type === UPowerDeviceType.Battery)
-    property var batDev: UPower.displayDevice
-    property int battPct: batDev && batDev.percentage ? Math.round(batDev.percentage * 100) : 100
-    property bool charging: batDev ? batDev.state === UPowerDeviceState.Charging : false
+    property bool hasBattery: false
+    property int battPct: 0
+    property bool charging: false
     property string batterySize: "--"
     property string timeLeft: "--"
     property string chargeCycles: "--"
     property string wattage: "--"
     property string activeProfile: "balanced"
+
+    // Dynamic Hardware Battery Detection
+    Process {
+        id: batDetectProc
+        command: ["sh", "-c", "ls /sys/class/power_supply/BAT* 2>/dev/null | head -n1"]
+        running: true
+        stdout: StdioCollector {
+            onStreamFinished: {
+                ccRoot.hasBattery = text.trim().length > 0
+            }
+        }
+    }
 
     // Update state
     property int pacmanCount: 0
@@ -200,7 +210,7 @@ Item {
         return Math.round(bytesPerSec) + " B/s"
     }
 
-    // ---- Network processes (only ticked while the popup is open, see pollTimer below) ----
+    // Network processes
     Process {
         id: statusFetcher
         command: ["sh", "-c", "
@@ -344,7 +354,7 @@ Item {
         }
     }
 
-    // ---- Bluetooth processes ----
+    // Bluetooth processes
     Process {
         id: btPowerFetcher
         command: ["sh", "-c", "bluetoothctl show | grep -q 'Powered: yes' && echo yes || echo no"]
@@ -395,7 +405,7 @@ Item {
     Process { id: toggleBtProcess }
     Process { id: btConnectProcess }
 
-    // ---- System info processes ----
+    // System info processes
     Process {
         id: cpuProc
         command: ["bash", "-c", "top -bn1 | grep 'Cpu(s)' | sed 's/.*, *\\([0-9.]*\\)%* id.*/\\1/' | awk '{print 100 - $1}'"]
@@ -441,16 +451,28 @@ Item {
         stdout: StdioCollector { onStreamFinished: ccRoot.uptimeText = text.trim() || "Unknown" }
     }
 
-    // ---- Power processes ----
+    // Direct Battery Stats Fetcher
     Process {
         id: statsProc
-        command: ["sh", "-c", "BAT=$(upower -e | grep -m1 'BAT'); upower -i \"$BAT\""]
+        command: ["sh", "-c", "
+            BAT=$(upower -e | grep -m1 'BAT')
+            if [ -n \"$BAT\" ]; then
+                upower -i \"$BAT\"
+            else
+                echo 'percentage: 0%'
+            fi
+        "]
         stdout: StdioCollector {
             onStreamFinished: {
                 const lines = text.split("\n")
                 for (const l of lines) {
                     const t = l.trim()
-                    if (t.startsWith("energy-full:")) {
+                    if (t.startsWith("percentage:")) {
+                        const m = t.match(/([\d.]+)/)
+                        if (m) ccRoot.battPct = Math.round(parseFloat(m[1]))
+                    } else if (t.startsWith("state:")) {
+                        ccRoot.charging = t.includes("charging") && !t.includes("discharging")
+                    } else if (t.startsWith("energy-full:")) {
                         const m = t.match(/([\d.]+)\s*Wh/)
                         if (m) ccRoot.batterySize = Math.round(parseFloat(m[1])) + "Wh"
                     } else if (t.startsWith("time to empty:") || t.startsWith("time to full:")) {
@@ -469,11 +491,11 @@ Item {
 
     Process {
         id: profileProc
-        command: ["bash", "-c", "powerprofilesctl get"]
+        command: ["bash", "-c", "powerprofilesctl get 2>/dev/null || echo 'balanced'"]
         stdout: StdioCollector { onStreamFinished: ccRoot.activeProfile = text.trim() }
     }
 
-    // ---- Update check — hourly, left running regardless of popup state since it's cheap ----
+    // Update check
     Process {
         id: updateProc
         command: ["bash", "-c", "checkupdates 2>/dev/null | wc -l; yay -Qua 2>/dev/null | wc -l"]
@@ -500,7 +522,7 @@ Item {
         onExited: (code, status) => { updateProc.running = true }
     }
 
-    // ---- Shared poll: only runs while the control centre popup is open ----
+    // Shared poll
     Timer {
         id: pollTimer
         interval: 3000
@@ -521,11 +543,11 @@ Item {
             memProc.running = true
             diskProc.running = true
             uptimeProc.running = true
+            batDetectProc.running = true
             if (ccRoot.hasBattery) { statsProc.running = true; profileProc.running = true }
         }
     }
 
-    // Resolve $HOME once so the avatar can read ~/.face, same idea as Caelestia's dashboard
     Process {
         id: homeDirFetcher
         command: ["sh", "-c", "echo $HOME"]
@@ -558,7 +580,6 @@ Item {
         }
     }
 
-    // Bar icon — swap for whichever glyph you want as the "control centre" launcher
     Text {
         anchors.centerIn: parent
         text: "\uF013"
@@ -630,7 +651,6 @@ Item {
                 anchors.margins: 16
                 spacing: 10
 
-                // ---- Header: avatar + name + quick actions ----
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 10
@@ -680,7 +700,6 @@ Item {
 
                     Item { Layout.fillWidth: true }
 
-                    // Wallpaper picker button — left-click opens the picker, right-click sets a random one
                     Text {
                         text: "\uF03E"
                         color: Colors.c(7)
@@ -700,7 +719,6 @@ Item {
                         }
                     }
 
-                    // Screenshot button — opens capture mode menu
                     Text {
                         text: "\uF030"
                         color: Colors.c(7)
@@ -716,7 +734,6 @@ Item {
 
                 Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.c(8) }
 
-                // ---- Media card ----
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 8
@@ -824,7 +841,6 @@ Item {
 
                 Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.c(8); visible: ccRoot.hasMedia }
 
-                // ---- Volume slider ----
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 6
@@ -888,7 +904,6 @@ Item {
                     }
                 }
 
-                // ---- Brightness slider ----
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 6
@@ -947,7 +962,6 @@ Item {
 
                 Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.c(8) }
 
-                // ---- Display card ----
                 Rectangle {
                     Layout.fillWidth: true
                     radius: 8
@@ -1027,7 +1041,6 @@ Item {
 
                 Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.c(8) }
 
-                // ---- Network card ----
                 Rectangle {
                     Layout.fillWidth: true
                     radius: 8
@@ -1155,10 +1168,10 @@ Item {
                                             anchors.fill: parent
                                             cursorShape: Qt.PointingHandCursor
                                             onClicked: {
-                                                var script = "if ! nmcli dev wifi connect '" + modelData + "' 2>/dev/null; then " +
-                                                             "echo 'Password required for " + modelData + ":'; read -s pass; " +
-                                                             "nmcli dev wifi connect '" + modelData + "' password \"$pass\"; fi"
-                                                Quickshell.execDetached(["sh", "-c", "kitty -e sh -c \"" + script + "\""])
+                                                var ssid = modelData.replace(/'/g, "'\\''")
+                                                var cmd = "nmcli --ask dev wifi connect '" + ssid + "'; echo 'Press Enter to exit...'; read"
+
+                                                Quickshell.execDetached(["kitty", "-e", "bash", "-c", cmd])
                                             }
                                         }
                                     }
@@ -1168,7 +1181,6 @@ Item {
                     }
                 }
 
-                // ---- Bluetooth card ----
                 Rectangle {
                     Layout.fillWidth: true
                     radius: 8
@@ -1294,7 +1306,6 @@ Item {
 
                 Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.c(8) }
 
-                // ---- CPU / RAM / Disk stat row ----
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 8
@@ -1327,7 +1338,8 @@ Item {
                     font.family: "Hack Nerd Font"
                 }
 
-                // ---- Power / battery card ----
+                Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.c(8); visible: ccRoot.hasBattery }
+
                 Rectangle {
                     Layout.fillWidth: true
                     radius: 8
@@ -1450,7 +1462,6 @@ Item {
                     }
                 }
 
-                // ---- Updates bar — only shown when something's pending ----
                 Rectangle {
                     Layout.fillWidth: true
                     visible: ccRoot.updateCount > 0
@@ -1503,7 +1514,6 @@ Item {
         }
     }
 
-    // ---- Wallpaper picker — full grid, separate from the compact control centre popup ----
     PopupWindow {
         id: wallpaperPickerPopup
         visible: false
@@ -1622,7 +1632,6 @@ Item {
         }
     }
 
-    // ---- Screenshot capture-mode menu ----
     PopupWindow {
         id: screenshotMenuPopup
         visible: false
