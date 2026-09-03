@@ -105,7 +105,7 @@ WAL_CACHE="$CACHE_DIR/wal"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPTS_SRC="$REPO_ROOT/scripts"
 CONFIGS_SRC="$REPO_ROOT/configs"
-WALLPAPERS_SRC="$REPO_ROOT/Pictures/Wallpapers"
+WALLPAPERS_REPO="https://github.com/Saltyfunnel/Wallpapers"
 
 print_banner
 
@@ -293,7 +293,13 @@ print_phase "Scripts, wallpapers & shell"
 
 ASSETS_CMD="
 [[ -d '$SCRIPTS_SRC' ]] && sudo -u $USER_NAME cp -rf '$SCRIPTS_SRC/'* '$CONFIG_DIR/scripts/' && chmod +x '$CONFIG_DIR/scripts/'* 2>/dev/null || true
-[[ -d '$WALLPAPERS_SRC' ]] && sudo -u $USER_NAME cp -rf '$WALLPAPERS_SRC/'* '$USER_HOME/Pictures/Wallpapers/'
+
+if [ -d '$USER_HOME/Pictures/Wallpapers/.git' ]; then
+    sudo -u $USER_NAME git -C '$USER_HOME/Pictures/Wallpapers' pull
+else
+    sudo -u $USER_NAME git clone '$WALLPAPERS_REPO' '$USER_HOME/Pictures/Wallpapers'
+fi
+
 sudo -u $USER_NAME cat > '$USER_HOME/.bashrc' << 'EOF'
 #!/bin/bash
 [[ -f ~/.cache/wal/sequences ]] && cat ~/.cache/wal/sequences
@@ -383,7 +389,7 @@ print_banner
 echo ""
 center "${BCYN}╭─────────────────────────────────────────────────────────────╮${RST}"
 center "${BCYN}│                                                             │${RST}"
-center "${BCYN}│         ${BLD}${BGRN}✦  H Y P R L A N D   I N S T A L L E D  ✦${RST}${BCYN}         │${RST}"
+center "${BCYN}│          ${BLD}${BGRN}✦  H Y P R L A N D   I N S T A L L E D  ✦${RST}${BCYN}         │${RST}"
 center "${BCYN}│                                                             │${RST}"
 center "${BCYN}╰─────────────────────────────────────────────────────────────╯${RST}"
 echo ""
