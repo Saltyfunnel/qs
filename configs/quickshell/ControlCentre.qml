@@ -24,7 +24,7 @@ Item {
     property string selectedMonitor: "eDP-1"
     readonly property var resolutionPresets: [
         { label: "1920x1080 @ 144Hz", w: 1920, h: 1080, r: 144 },
-        { label: "1920x1080 @ 60Hz",  w: 1920, h: 1080, r: 60 },
+        { label: "1920x1080 @ 60Hz",  w: 1920, h: 60 },
         { label: "2560x1440 @ 165Hz", w: 2560, h: 1440, r: 165 },
         { label: "2560x1440 @ 144Hz", w: 2560, h: 1440, r: 144 },
         { label: "2560x1440 @ 60Hz",  w: 2560, h: 1080, r: 60 }
@@ -354,7 +354,7 @@ Item {
         }
     }
 
-    // Bluetooth processes
+    /// Bluetooth processes
     Process {
         id: btPowerFetcher
         command: ["sh", "-c", "bluetoothctl show | grep -q 'Powered: yes' && echo yes || echo no"]
@@ -362,7 +362,14 @@ Item {
     }
 
     Process {
+        id: btScanProcess
+        // Launches scan in the background so it doesn't block Quickshell
+        command: ["sh", "-c", "bluetoothctl --timeout 5 scan le >/dev/null 2>&1 &"]
+    }
+
+    Process {
         id: btDevicesFetcher
+        // Fetches all newly discovered devices in BlueZ's cache
         command: ["sh", "-c", "bluetoothctl devices"]
         stdout: StdioCollector {
             onStreamFinished: {
@@ -371,7 +378,12 @@ Item {
                 for (var i = 0; i < lines.length; i++) {
                     var parts = lines[i].trim().split(/\s+/)
                     if (parts.length >= 3 && parts[0] === "Device") {
-                        avail.push({ mac: parts[1], name: parts.slice(2).join(" ") })
+                        var mac = parts[1]
+                        var name = parts.slice(2).join(" ")
+                        // Filter out already connected devices
+                        if (!ccRoot.connectedDevices.some(d => d.mac === mac)) {
+                            avail.push({ mac: mac, name: name })
+                        }
                     }
                 }
                 ccRoot.availableDevices = avail
@@ -537,8 +549,8 @@ Item {
             dnsFetcher.running = false; dnsFetcher.running = true
             if (ccRoot.wifiEnabled) { nearbyFetcher.running = false; nearbyFetcher.running = true }
             btPowerFetcher.running = false; btPowerFetcher.running = true
-            btDevicesFetcher.running = false; btDevicesFetcher.running = true
             btConnectedFetcher.running = false; btConnectedFetcher.running = true
+            btDevicesFetcher.running = false; btDevicesFetcher.running = true
             cpuProc.running = true
             memProc.running = true
             diskProc.running = true
@@ -627,6 +639,11 @@ Item {
                     contentRoot.opacity = 1
                     contentRoot.scale = 1
                 })
+            } else {
+                if (btScanProcess.running) {
+                    Quickshell.execDetached(["bluetoothctl", "scan", "off"])
+                    btScanProcess.running = false
+                }
             }
         }
 
@@ -1231,10 +1248,14 @@ Item {
                                     anchors.fill: parent
                                     cursorShape: Qt.PointingHandCursor
                                     onClicked: {
-                                        var cmd = ccRoot.btPowered ? "bluetoothctl power off" : "bluetoothctl power on"
+                                        var cmd = ccRoot.btPowered ? "bluetoothctl power off" : "bluetoothctl power on; bluetoothctl pairable on"
                                         toggleBtProcess.command = ["sh", "-c", cmd]
                                         toggleBtProcess.running = true
                                         ccRoot.btPowered = !ccRoot.btPowered
+                                        if (!ccRoot.btPowered && btScanProcess.running) {
+                                            Quickshell.execDetached(["bluetoothctl", "scan", "off"])
+                                            btScanProcess.running = false
+                                        }
                                     }
                                 }
                             }
@@ -1247,7 +1268,16 @@ Item {
                                 MouseArea {
                                     anchors.fill: parent
                                     cursorShape: Qt.PointingHandCursor
-                                    onClicked: ccRoot.btExpanded = !ccRoot.btExpanded
+                                    onClicked: {
+                                        ccRoot.btExpanded = !ccRoot.btExpanded
+                                        if (ccRoot.btExpanded && ccRoot.btPowered) {
+                                            btScanProcess.running = false
+                                            btScanProcess.running = true
+                                        } else {
+                                            Quickshell.execDetached(["bluetoothctl", "scan", "off"])
+                                            btScanProcess.running = false
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -1258,6 +1288,14 @@ Item {
                             visible: ccRoot.btExpanded && ccRoot.btPowered
 
                             Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.c(8) }
+
+                            Text {
+                                visible: ccRoot.connectedDevices.length === 0 && ccRoot.availableDevices.length === 0
+                                text: "Scanning for devices…"
+                                color: Colors.c(8)
+                                font.pixelSize: 9
+                                font.family: "Hack Nerd Font"
+                            }
 
                             Repeater {
                                 model: ccRoot.connectedDevices
@@ -1294,7 +1332,7 @@ Item {
                                         anchors.fill: parent
                                         cursorShape: Qt.PointingHandCursor
                                         onClicked: {
-                                            btConnectProcess.command = ["bluetoothctl", "connect", modelData.mac]
+                                            btConnectProcess.command = ["sh", "-c", "bluetoothctl pair " + modelData.mac + " && bluetoothctl connect " + modelData.mac]
                                             btConnectProcess.running = true
                                         }
                                     }
@@ -1338,7 +1376,7 @@ Item {
                     font.family: "Hack Nerd Font"
                 }
 
-                Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.c(8); visible: ccRoot.hasBattery }
+                Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.c(8); visible: ccRoot.hasMedia }
 
                 Rectangle {
                     Layout.fillWidth: true
