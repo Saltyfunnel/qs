@@ -28,7 +28,7 @@ Item {
 
     Text {
         anchors.centerIn: parent
-        text: "\uF303"
+        text: "\uF303 "
         color: iconMouse.containsMouse ? Colors.c(7) : Colors.c(0)
         font.pixelSize: 16
         font.bold: true

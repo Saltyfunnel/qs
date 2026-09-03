@@ -48,62 +48,22 @@ PanelWindow {
             anchors.centerIn: parent
             spacing: 6
 
+            Pill { AppLauncher {} }
+
             Workspaces {}
-             Pill { visible: trayContent.implicitWidth > 0; Tray { id: trayContent } }
+
+            // Left padding spacer to center-isolate the clock
+            Item { Layout.preferredWidth: 12 }
 
             Clock {}
 
-            // App launcher — Wallpaper and Screenshot moved into ControlCentre, so this
-            // is now a single-item drawer. Simplify to a plain Pill if you'd rather
-            // drop the slide-out entirely.
-            Pill {
-                id: drawerPill
-                property bool expanded: false
-
-                implicitWidth: drawerRow.implicitWidth + 12
-
-                Behavior on implicitWidth {
-                    NumberAnimation { duration: 250; easing.type: Easing.OutCubic }
-                }
-
-                RowLayout {
-                    id: drawerRow
-                    anchors.verticalCenter: parent.verticalCenter
-                    spacing: 4
-
-                    Text {
-                        text: drawerPill.expanded ? "󰅃" : "󰅀"
-                        color: Colors.fg()
-                        font.pixelSize: 14
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: drawerPill.expanded = !drawerPill.expanded
-                        }
-                    }
-
-                    Item {
-                        id: slideOutContainer
-                        implicitHeight: drawerItems.implicitHeight
-                        implicitWidth: drawerPill.expanded ? drawerItems.implicitWidth : 0
-                        clip: true
-
-                        Behavior on implicitWidth {
-                            NumberAnimation { duration: 250; easing.type: Easing.OutCubic }
-                        }
-
-                        RowLayout {
-                            id: drawerItems
-                            spacing: 6
-
-                            AppLauncher {}
-                        }
-                    }
-                }
-            }
+            // Right padding spacer to center-isolate the clock
+            Item { Layout.preferredWidth: 12 }
 
             Pill { ControlCentre {} }
+
+            Pill { visible: trayContent.implicitWidth > 0; Tray { id: trayContent } }
+
             Pill { Session {} }
         }
     }

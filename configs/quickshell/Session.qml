@@ -87,7 +87,7 @@ Item {
                         { icon: "󰤄", label: "Suspend", cmd: "systemctl suspend", confirmLabel: "" },
                         { icon: "󰑓", label: "Reboot", cmd: "systemctl reboot", confirmLabel: "Reboot now?" },
                         { icon: "󰐥", label: "Shut Down", cmd: "systemctl poweroff", confirmLabel: "Shut down now?" },
-                        { icon: "󰍃", label: "Log Out", cmd: "hyprctl dispatch exit", confirmLabel: "Log out now?" }
+                        { icon: "󰍃", label: "Log Out", cmd: "hyprctl dispatch 'hl.dsp.exit()'", confirmLabel: "Log out now?" }
                     ]
 
                     delegate: Rectangle {

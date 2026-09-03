@@ -19,6 +19,34 @@ Item {
     property var sink: Pipewire.defaultAudioSink
     property int brightnessLevel: 100
 
+    // Display state
+    property bool displayExpanded: false
+    property string selectedMonitor: "eDP-1"
+    readonly property var resolutionPresets: [
+        { label: "1920x1080 @ 144Hz", w: 1920, h: 1080, r: 144 },
+        { label: "1920x1080 @ 60Hz",  w: 1920, h: 1080, r: 60 },
+        { label: "2560x1440 @ 165Hz", w: 2560, h: 1440, r: 165 },
+        { label: "2560x1440 @ 144Hz", w: 2560, h: 1440, r: 144 },
+        { label: "2560x1440 @ 60Hz",  w: 2560, h: 1440, r: 60 }
+    ]
+
+    Process {
+        id: monitorFetcher
+        command: ["bash", "-c", "hyprctl -j monitors | jq -r '.[] | select(.focused==true) | .name' 2>/dev/null || hyprctl -j monitors | jq -r '.[0].name'"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                var name = text.trim()
+                if (name.length > 0) ccRoot.selectedMonitor = name
+            }
+        }
+    }
+
+    function applyResolution(mon, width, height, refresh) {
+        var newMode = width + "x" + height + "@" + refresh
+        var luaCmd = "hyprctl eval 'hl.monitor({ output = \"" + mon + "\", mode = \"" + newMode + "\", position = \"auto\", scale = 1 })'"
+        Quickshell.execDetached(["bash", "-c", luaCmd])
+    }
+
     // Network state
     property bool networkExpanded: false
     property string connectionType: "none"
@@ -119,6 +147,47 @@ Item {
         id: wallpaperRunner
         property string selectedPath: ""
         command: ["bash", "-c", "~/.config/scripts/setwall.sh \"" + selectedPath + "\""]
+    }
+
+    // Screenshot state
+    function shootScreenshot(mode) {
+        let cmd = ""
+        const dir = "~/Pictures/Screenshots"
+        const file = dir + "/screenshot_$(date +%Y%m%d_%H%M%S).png"
+
+        if (mode === "full") {
+            cmd = "mkdir -p " + dir + " && grim " + file + " && wl-copy < " + file + " && notify-send 'Screenshot' 'Full screen captured'"
+        } else if (mode === "region") {
+            cmd = "mkdir -p " + dir + " && grim -g \"$(slurp)\" " + file + " && wl-copy < " + file + " && notify-send 'Screenshot' 'Region captured'"
+        } else if (mode === "window") {
+            cmd = "mkdir -p " + dir + " && grim -g \"$(hyprctl activewindow -j | jq -r '.at[0],.at[1],.size[0],.size[1]' | paste -sd' ' | awk '{print $1\",\"$2\" \"$3\"x\"$4}')\" " + file + " && wl-copy < " + file + " && notify-send 'Screenshot' 'Window captured'"
+        }
+
+        Quickshell.execDetached(["bash", "-c", cmd])
+        bar.closeActivePopup()
+    }
+
+    function shootScreenshotDelayed() {
+        bar.closeActivePopup()
+        delayNotify.running = true
+        delayTimer.running = true
+    }
+
+    Process {
+        id: delayNotify
+        command: ["notify-send", "Screenshot", "Capturing in 3 seconds\u2026"]
+    }
+
+    Timer {
+        id: delayTimer
+        interval: 3000
+        repeat: false
+        onTriggered: {
+            const dir = "~/Pictures/Screenshots"
+            const file = dir + "/screenshot_$(date +%Y%m%d_%H%M%S).png"
+            const cmd = "mkdir -p " + dir + " && grim " + file + " && wl-copy < " + file + " && notify-send 'Screenshot' 'Full screen captured'"
+            Quickshell.execDetached(["bash", "-c", cmd])
+        }
     }
 
     PwObjectTracker { objects: [ccRoot.sink] }
@@ -417,6 +486,12 @@ Item {
         onTriggered: updateProc.running = true
     }
 
+    Process {
+        id: upgradeProc
+        command: ["kitty", "-e", "yay"]
+        onExited: (code, status) => { updateProc.running = true }
+    }
+
     // ---- Shared poll: only runs while the control centre popup is open ----
     Timer {
         id: pollTimer
@@ -516,6 +591,7 @@ Item {
 
         onVisibleChanged: {
             if (visible) {
+                monitorFetcher.running = true
                 contentRoot.opacity = 0
                 contentRoot.scale = 0.94
                 Qt.callLater(function() {
@@ -616,7 +692,7 @@ Item {
                         }
                     }
 
-                    // Screenshot button — wire this to your Screenshot.qml command
+                    // Screenshot button — opens capture mode menu
                     Text {
                         text: "\uF030"
                         color: Colors.c(7)
@@ -625,10 +701,7 @@ Item {
                         MouseArea {
                             anchors.fill: parent
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                // TODO: run your screenshot command (send me Screenshot.qml to wire this properly)
-                                bar.closeActivePopup()
-                            }
+                            onClicked: bar.togglePopup(screenshotMenuPopup)
                         }
                     }
                 }
@@ -859,6 +932,86 @@ Item {
                                 var v = Math.max(5, Math.min(100, Math.round((mouse.x / width) * 100)))
                                 ccRoot.brightnessLevel = v
                                 setBrightnessProcess.setLevel(v)
+                            }
+                        }
+                    }
+                }
+
+                Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.c(8) }
+
+                // ---- Display card ----
+                Rectangle {
+                    Layout.fillWidth: true
+                    radius: 8
+                    color: Colors.c(0)
+                    implicitHeight: displayCardCol.implicitHeight + 20
+                    clip: true
+
+                    Behavior on implicitHeight { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+
+                    ColumnLayout {
+                        id: displayCardCol
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.top: parent.top
+                        anchors.margins: 10
+                        spacing: 8
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 10
+
+                            Text { text: "󰍹"; color: Colors.c(7); font.pixelSize: 18; font.family: "Hack Nerd Font" }
+                            Text { text: "Display · " + ccRoot.selectedMonitor; color: Colors.c(7); font.bold: true; font.pixelSize: 12; font.family: "Hack Nerd Font" }
+                            Item { Layout.fillWidth: true }
+                            Text {
+                                text: ccRoot.displayExpanded ? "󰅃" : "󰅀"
+                                color: Colors.c(8)
+                                font.pixelSize: 12
+                                font.family: "Hack Nerd Font"
+                                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: ccRoot.displayExpanded = !ccRoot.displayExpanded }
+                            }
+                        }
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 6
+                            visible: ccRoot.displayExpanded
+
+                            Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.c(8) }
+
+                            Text {
+                                text: "DISPLAY PRESETS"
+                                color: Colors.c(8)
+                                font.pixelSize: 9
+                                font.bold: true
+                                font.family: "Hack Nerd Font"
+                            }
+
+                            Repeater {
+                                model: ccRoot.resolutionPresets
+                                delegate: Rectangle {
+                                    Layout.fillWidth: true
+                                    implicitHeight: 30
+                                    radius: 6
+                                    color: Colors.bg()
+
+                                    RowLayout {
+                                        anchors.fill: parent
+                                        anchors.leftMargin: 10
+                                        anchors.rightMargin: 10
+
+                                        Text { text: modelData.label; color: Colors.c(7); font.pixelSize: 11; font.family: "Hack Nerd Font" }
+                                        Item { Layout.fillWidth: true }
+                                        Text { text: "Apply"; color: Colors.c(1); font.pixelSize: 10; font.bold: true; font.family: "Hack Nerd Font" }
+                                    }
+
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: ccRoot.applyResolution(ccRoot.selectedMonitor, modelData.w, modelData.h, modelData.r)
+                                    }
+                                }
                             }
                         }
                     }
@@ -1311,6 +1464,17 @@ Item {
                             Layout.fillWidth: true
                         }
                         Text {
+                            text: "\uF021"
+                            color: Colors.c(8)
+                            font.pixelSize: 12
+                            font.family: "Hack Nerd Font"
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: updateProc.running = true
+                            }
+                        }
+                        Text {
                             text: "Upgrade"
                             color: Colors.c(1)
                             font.pixelSize: 10
@@ -1321,7 +1485,7 @@ Item {
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: {
                                     bar.closeActivePopup()
-                                    Quickshell.execDetached(["kitty", "-e", "yay"])
+                                    upgradeProc.running = true
                                 }
                             }
                         }
@@ -1445,6 +1609,94 @@ Item {
                             }
                         }
                     }
+                }
+            }
+        }
+    }
+
+    // ---- Screenshot capture-mode menu ----
+    PopupWindow {
+        id: screenshotMenuPopup
+        visible: false
+        anchor.window: bar
+        anchor.rect.x: bar.width - screenshotMenuPopup.implicitWidth
+        anchor.rect.y: bar.implicitHeight + 12
+        grabFocus: true
+        implicitWidth: 260
+        implicitHeight: 270
+        color: "transparent"
+
+        Rectangle {
+            anchors.fill: parent
+            radius: 12
+            color: Colors.bg()
+            border.color: Colors.c(1)
+            border.width: 2
+
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: 18
+                spacing: 14
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 10
+
+                    Text { text: "\uF030"; color: Colors.c(1); font.pixelSize: 20; font.family: "Hack Nerd Font" }
+                    Text { text: "Screenshot"; color: Colors.c(7); font.bold: true; font.pixelSize: 15; font.family: "Hack Nerd Font" }
+                }
+
+                Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.c(8) }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 6
+
+                    Repeater {
+                        model: [
+                            { key: "region", icon: "󰆞", label: "Select region" },
+                            { key: "window", icon: "󰖯", label: "Active window" },
+                            { key: "full", icon: "󰹑", label: "Full screen" },
+                            { key: "delayed", icon: "󰥔", label: "Full screen (3s delay)" }
+                        ]
+                        delegate: Rectangle {
+                            Layout.fillWidth: true
+                            implicitHeight: 40
+                            radius: 8
+                            color: rowArea.containsMouse ? Colors.c(0) : "transparent"
+
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.leftMargin: 12
+                                anchors.rightMargin: 12
+                                spacing: 10
+
+                                Text { text: modelData.icon; color: Colors.c(1); font.pixelSize: 15; font.family: "Hack Nerd Font" }
+                                Text { text: modelData.label; color: Colors.c(7); font.pixelSize: 12; font.family: "Hack Nerd Font" }
+                                Item { Layout.fillWidth: true }
+                            }
+
+                            MouseArea {
+                                id: rowArea
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    if (modelData.key === "delayed") ccRoot.shootScreenshotDelayed()
+                                    else ccRoot.shootScreenshot(modelData.key)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Item { Layout.fillHeight: true }
+
+                Text {
+                    text: "Saved to ~/Pictures/Screenshots"
+                    color: Colors.c(8)
+                    font.pixelSize: 9
+                    font.family: "Hack Nerd Font"
                 }
             }
         }
