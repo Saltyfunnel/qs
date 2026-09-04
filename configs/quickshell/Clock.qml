@@ -140,6 +140,13 @@ Item {
         return days
     }
 
+    function formatTime(seconds) {
+        if (isNaN(seconds) || seconds < 0) return "0:00"
+        var mins = Math.floor(seconds / 60)
+        var secs = Math.floor(seconds % 60)
+        return mins + ":" + (secs < 10 ? "0" : "") + secs
+    }
+
     // ============================================================
     // CONTROL CENTRE STATE
     // ============================================================
@@ -178,7 +185,6 @@ Item {
     }
 
     // Network State & Actions
-    property bool networkExpanded: false
     property string connectionType: "none"
     property string activeDevice: ""
     property string activeName: "Disconnected"
@@ -215,7 +221,6 @@ Item {
         clockRoot.selectedDns = dnsType
     }
 
-    property bool btExpanded: false
     property bool btPowered: true
     property var connectedDevices: []
     property var availableDevices: []
@@ -864,12 +869,12 @@ Item {
                 // ---- TOP NAVIGATION TABS BAR ----
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 12
+                    spacing: 8
 
                     Repeater {
-                        model: ["Dashboard", "Media", "Performance", "Weather"]
+                        model: ["Dashboard", "Media", "Network/BT", "Performance", "Weather"]
                         delegate: Rectangle {
-                            implicitWidth: tabText.implicitWidth + 28
+                            implicitWidth: tabText.implicitWidth + 24
                             implicitHeight: 34
                             radius: 17
                             color: clockRoot.activeTab === modelData ? Colors.c(1) : "transparent"
@@ -1102,7 +1107,7 @@ Item {
                         // 4 & 5. CALENDAR CONTAINER
                         Rectangle {
                             Layout.fillWidth: true
-                            Layout.preferredHeight: 165
+                            Layout.preferredHeight: 185
                             Layout.columnSpan: 2
                             radius: 18
                             color: clockRoot.pywalCardBg(5)
@@ -1208,10 +1213,10 @@ Item {
                             }
                         }
 
-                        // 6. MEDIA WIDGET CARD
+                        // 6. MEDIA WIDGET CARD (UPDATED: FILLS ENTIRE CARD SPACE)
                         Rectangle {
                             Layout.fillWidth: true
-                            Layout.preferredHeight: 165
+                            Layout.preferredHeight: 185
                             radius: 18
                             color: clockRoot.pywalCardBg(3)
                             border.color: Colors.c(3)
@@ -1219,235 +1224,131 @@ Item {
 
                             ColumnLayout {
                                 anchors.fill: parent
-                                anchors.margins: 14
-                                spacing: 8
-
-                                Rectangle {
-                                    Layout.alignment: Qt.AlignHCenter
-                                    implicitWidth: 54
-                                    implicitHeight: 54
-                                    radius: 12
-                                    color: Colors.bg()
-                                    clip: true
-
-                                    Image {
-                                        id: artImg
-                                        anchors.fill: parent
-                                        source: clockRoot.player && clockRoot.player.trackArtUrl ? clockRoot.player.trackArtUrl : ""
-                                        fillMode: Image.PreserveAspectCrop
-                                        visible: source !== "" && status === Image.Ready
-                                    }
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: "󰝚"
-                                        color: Colors.c(8)
-                                        font.pixelSize: 22
-                                        font.family: "Hack Nerd Font"
-                                        visible: !artImg.visible
-                                    }
-                                }
-
-                                ColumnLayout {
-                                    Layout.fillWidth: true
-                                    spacing: 2
-                                    Text {
-                                        text: clockRoot.player ? (clockRoot.player.trackTitle || "No media") : "No media"
-                                        color: Colors.c(7)
-                                        font.bold: true
-                                        font.pixelSize: 12
-                                        font.family: "Hack Nerd Font"
-                                        elide: Text.ElideRight
-                                        Layout.alignment: Qt.AlignHCenter
-                                    }
-                                    Text {
-                                        text: clockRoot.player ? (clockRoot.player.trackArtist || "") : ""
-                                        color: Colors.c(8)
-                                        font.pixelSize: 10
-                                        font.family: "Hack Nerd Font"
-                                        elide: Text.ElideRight
-                                        Layout.alignment: Qt.AlignHCenter
-                                    }
-                                }
+                                anchors.margins: 12
+                                spacing: 4
 
                                 RowLayout {
-                                    Layout.alignment: Qt.AlignHCenter
-                                    spacing: 16
-                                    visible: clockRoot.hasMedia
-                                    Text {
-                                        text: "󰒮"; color: Colors.c(7); font.pixelSize: 15; font.family: "Hack Nerd Font"
-                                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: if (clockRoot.player) clockRoot.player.previous() }
+                                    Layout.fillWidth: true
+                                    Layout.fillHeight: true
+                                    spacing: 12
+
+                                    Rectangle {
+                                        Layout.fillHeight: true
+                                        implicitWidth: height
+                                        radius: 12
+                                        color: Colors.bg()
+                                        clip: true
+
+                                        Image {
+                                            id: artImg
+                                            anchors.fill: parent
+                                            source: clockRoot.player && clockRoot.player.trackArtUrl ? clockRoot.player.trackArtUrl : ""
+                                            fillMode: Image.PreserveAspectCrop
+                                            visible: source !== "" && status === Image.Ready
+                                        }
+                                        Text {
+                                            anchors.centerIn: parent
+                                            text: "󰝚"
+                                            color: Colors.c(8)
+                                            font.pixelSize: 28
+                                            font.family: "Hack Nerd Font"
+                                            visible: !artImg.visible
+                                        }
                                     }
-                                    Text {
-                                        text: clockRoot.player && clockRoot.player.playbackState === MprisPlaybackState.Playing ? "󰏤" : "󰐊"
-                                        color: Colors.c(1); font.pixelSize: 18; font.family: "Hack Nerd Font"
-                                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: if (clockRoot.player) clockRoot.player.togglePlaying() }
+
+                                    ColumnLayout {
+                                        Layout.fillWidth: true
+                                        Layout.fillHeight: true
+                                        spacing: 2
+
+                                        Item { Layout.fillHeight: true }
+
+                                        Text {
+                                            Layout.fillWidth: true
+                                            text: clockRoot.player ? (clockRoot.player.trackTitle || "No media") : "No media"
+                                            color: Colors.c(7)
+                                            font.bold: true
+                                            font.pixelSize: 13
+                                            font.family: "Hack Nerd Font"
+                                            elide: Text.ElideRight
+                                        }
+                                        Text {
+                                            Layout.fillWidth: true
+                                            text: clockRoot.player ? (clockRoot.player.trackArtist || "") : ""
+                                            color: Colors.c(8)
+                                            font.pixelSize: 11
+                                            font.family: "Hack Nerd Font"
+                                            elide: Text.ElideRight
+                                        }
+
+                                        Item { Layout.fillHeight: true }
+
+                                        RowLayout {
+                                            spacing: 16
+                                            visible: clockRoot.hasMedia
+                                            Text {
+                                                text: "󰒮"; color: Colors.c(7); font.pixelSize: 16; font.family: "Hack Nerd Font"
+                                                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: if (clockRoot.player) clockRoot.player.previous() }
+                                            }
+                                            Text {
+                                                text: clockRoot.player && clockRoot.player.playbackState === MprisPlaybackState.Playing ? "󰏤" : "󰐊"
+                                                color: Colors.c(1); font.pixelSize: 20; font.family: "Hack Nerd Font"
+                                                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: if (clockRoot.player) clockRoot.player.togglePlaying() }
+                                            }
+                                            Text {
+                                                text: "󰒭"; color: Colors.c(7); font.pixelSize: 16; font.family: "Hack Nerd Font"
+                                                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: if (clockRoot.player) clockRoot.player.next() }
+                                            }
+                                        }
+
+                                        Item { Layout.fillHeight: true }
                                     }
-                                    Text {
-                                        text: "󰒭"; color: Colors.c(7); font.pixelSize: 15; font.family: "Hack Nerd Font"
-                                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: if (clockRoot.player) clockRoot.player.next() }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // 7. EXPANDABLE NETWORK CARD
-                    Rectangle {
-                        Layout.fillWidth: true
-                        implicitHeight: clockRoot.networkExpanded ? netLayout.implicitHeight + 24 : 60
-                        radius: 18
-                        color: clockRoot.pywalCardBg(2)
-                        border.color: Colors.c(2)
-                        border.width: 1.5
-                        clip: true
-
-                        Behavior on implicitHeight { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
-
-                        ColumnLayout {
-                            id: netLayout
-                            anchors.top: parent.top
-                            anchors.left: parent.left
-                            anchors.right: parent.right
-                            anchors.margins: 14
-                            spacing: 12
-
-                            // Header row
-                            RowLayout {
-                                Layout.fillWidth: true
-                                spacing: 12
-
-                                Text {
-                                    text: clockRoot.connectionType === "wifi" ? "󰤨" : (clockRoot.connectionType === "ethernet" ? "󰈀" : "󰤭")
-                                    color: Colors.c(2)
-                                    font.pixelSize: 18
-                                    font.family: "Hack Nerd Font"
                                 }
 
                                 ColumnLayout {
-                                    spacing: 2
-                                    Text {
-                                        text: clockRoot.activeName
-                                        color: Colors.c(7)
-                                        font.bold: true
-                                        font.pixelSize: 13
-                                        font.family: "Hack Nerd Font"
-                                    }
-                                    Text {
-                                        text: clockRoot.subStatus + " (" + clockRoot.ipAddress + ")"
-                                        color: Colors.c(8)
-                                        font.pixelSize: 11
-                                        font.family: "Hack Nerd Font"
-                                    }
-                                }
-
-                                Item { Layout.fillWidth: true }
-
-                                Text {
-                                    text: "↓ " + clockRoot.rxRate + "  ↑ " + clockRoot.txRate
-                                    color: Colors.c(7)
-                                    font.pixelSize: 11
-                                    font.family: "Hack Nerd Font"
-                                }
-
-                                Text {
-                                    text: clockRoot.networkExpanded ? "󰅃" : "󰅀"
-                                    color: Colors.c(7)
-                                    font.pixelSize: 16
-                                    font.family: "Hack Nerd Font"
-                                    MouseArea {
-                                        anchors.fill: parent
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: clockRoot.networkExpanded = !clockRoot.networkExpanded
-                                    }
-                                }
-                            }
-
-                            // Expanded Network Details & WiFi Networks
-                            ColumnLayout {
-                                Layout.fillWidth: true
-                                spacing: 12
-                                visible: clockRoot.networkExpanded
-
-                                Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Qt.rgba(1, 1, 1, 0.1) }
-
-                                GridLayout {
                                     Layout.fillWidth: true
-                                    columns: 4
-                                    rowSpacing: 6
-                                    columnSpacing: 12
+                                    spacing: 2
+                                    visible: clockRoot.hasMedia
 
-                                    Text { text: "Gateway: " + clockRoot.gateway; color: Colors.c(8); font.pixelSize: 11; font.family: "Hack Nerd Font" }
-                                    Text { text: "Ping: " + clockRoot.pingMs; color: Colors.c(8); font.pixelSize: 11; font.family: "Hack Nerd Font" }
-                                    Text { text: "Loss: " + clockRoot.packetLoss; color: Colors.c(8); font.pixelSize: 11; font.family: "Hack Nerd Font" }
+                                    Rectangle {
+                                        Layout.fillWidth: true
+                                        implicitHeight: 6
+                                        radius: 3
+                                        color: Colors.bg()
+
+                                        Rectangle {
+                                            width: (clockRoot.player && clockRoot.player.length > 0) ? parent.width * Math.min(1, Math.max(0, clockRoot.player.position / clockRoot.player.length)) : 0
+                                            height: parent.height
+                                            radius: 3
+                                            color: Colors.c(3)
+                                        }
+
+                                        MouseArea {
+                                            anchors.fill: parent
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: (mouse) => {
+                                                if (clockRoot.player && clockRoot.player.length > 0) {
+                                                    var pct = Math.max(0, Math.min(1, mouse.x / width))
+                                                    clockRoot.player.position = pct * clockRoot.player.length
+                                                }
+                                            }
+                                        }
+                                    }
 
                                     RowLayout {
-                                        spacing: 6
-                                        Text { text: "DNS:"; color: Colors.c(8); font.pixelSize: 11; font.family: "Hack Nerd Font" }
-                                        Repeater {
-                                            model: ["DHCP", "Cloudflare", "Google"]
-                                            delegate: Rectangle {
-                                                implicitWidth: dnsText.implicitWidth + 12
-                                                implicitHeight: 20
-                                                radius: 10
-                                                color: clockRoot.selectedDns === modelData ? Colors.c(2) : Colors.bg()
-                                                Text {
-                                                    id: dnsText
-                                                    anchors.centerIn: parent
-                                                    text: modelData
-                                                    color: clockRoot.selectedDns === modelData ? Colors.c(0) : Colors.c(7)
-                                                    font.pixelSize: 10
-                                                    font.family: "Hack Nerd Font"
-                                                }
-                                                MouseArea {
-                                                    anchors.fill: parent
-                                                    cursorShape: Qt.PointingHandCursor
-                                                    onClicked: clockRoot.applyDns(modelData)
-                                                }
-                                            }
+                                        Layout.fillWidth: true
+                                        Text {
+                                            text: clockRoot.player ? clockRoot.formatTime(clockRoot.player.position) : "0:00"
+                                            color: Colors.c(8)
+                                            font.pixelSize: 9
+                                            font.family: "Hack Nerd Font"
                                         }
-                                    }
-                                }
-
-                                Text {
-                                    text: "Available Wi-Fi Networks"
-                                    color: Colors.c(7)
-                                    font.bold: true
-                                    font.pixelSize: 12
-                                    font.family: "Hack Nerd Font"
-                                    visible: clockRoot.wifiEnabled
-                                }
-
-                                ColumnLayout {
-                                    Layout.fillWidth: true
-                                    spacing: 4
-                                    visible: clockRoot.wifiEnabled
-
-                                    Repeater {
-                                        model: clockRoot.otherNetworks.slice(0, 5)
-                                        delegate: Rectangle {
-                                            Layout.fillWidth: true
-                                            implicitHeight: 28
-                                            radius: 8
-                                            color: netItemArea.containsMouse ? Qt.rgba(1, 1, 1, 0.05) : "transparent"
-
-                                            RowLayout {
-                                                anchors.fill: parent
-                                                anchors.leftMargin: 8
-                                                anchors.rightMargin: 8
-
-                                                Text { text: "󰤨"; color: Colors.c(7); font.pixelSize: 13; font.family: "Hack Nerd Font" }
-                                                Text { text: modelData; color: Colors.c(7); font.pixelSize: 12; font.family: "Hack Nerd Font" }
-                                                Item { Layout.fillWidth: true }
-                                                Text { text: "Connect"; color: Colors.c(2); font.pixelSize: 11; font.bold: true; font.family: "Hack Nerd Font" }
-                                            }
-
-                                            MouseArea {
-                                                id: netItemArea
-                                                anchors.fill: parent
-                                                hoverEnabled: true
-                                                cursorShape: Qt.PointingHandCursor
-                                                onClicked: clockRoot.connectWifi(modelData)
-                                            }
+                                        Item { Layout.fillWidth: true }
+                                        Text {
+                                            text: clockRoot.player ? clockRoot.formatTime(clockRoot.player.length) : "0:00"
+                                            color: Colors.c(8)
+                                            font.pixelSize: 9
+                                            font.family: "Hack Nerd Font"
                                         }
                                     }
                                 }
@@ -1455,151 +1356,7 @@ Item {
                         }
                     }
 
-                    // 8. EXPANDABLE BLUETOOTH CARD
-                    Rectangle {
-                        Layout.fillWidth: true
-                        implicitHeight: clockRoot.btExpanded ? btLayout.implicitHeight + 24 : 60
-                        radius: 18
-                        color: clockRoot.pywalCardBg(5)
-                        border.color: Colors.c(5)
-                        border.width: 1.5
-                        clip: true
-
-                        Behavior on implicitHeight { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
-
-                        ColumnLayout {
-                            id: btLayout
-                            anchors.top: parent.top
-                            anchors.left: parent.left
-                            anchors.right: parent.right
-                            anchors.margins: 14
-                            spacing: 12
-
-                            RowLayout {
-                                Layout.fillWidth: true
-                                spacing: 12
-
-                                Text {
-                                    text: "󰂯"
-                                    color: Colors.c(5)
-                                    font.pixelSize: 18
-                                    font.family: "Hack Nerd Font"
-                                }
-
-                                ColumnLayout {
-                                    spacing: 2
-                                    Text {
-                                        text: "Bluetooth Devices"
-                                        color: Colors.c(7)
-                                        font.bold: true
-                                        font.pixelSize: 13
-                                        font.family: "Hack Nerd Font"
-                                    }
-                                    Text {
-                                        text: clockRoot.btPowered ? (clockRoot.connectedDevices.length + " Connected") : "Disabled"
-                                        color: Colors.c(8)
-                                        font.pixelSize: 11
-                                        font.family: "Hack Nerd Font"
-                                    }
-                                }
-
-                                Item { Layout.fillWidth: true }
-
-                                Text {
-                                    text: clockRoot.btExpanded ? "󰅃" : "󰅀"
-                                    color: Colors.c(7)
-                                    font.pixelSize: 16
-                                    font.family: "Hack Nerd Font"
-                                    MouseArea {
-                                        anchors.fill: parent
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: clockRoot.btExpanded = !clockRoot.btExpanded
-                                    }
-                                }
-                            }
-
-                            ColumnLayout {
-                                Layout.fillWidth: true
-                                spacing: 10
-                                visible: clockRoot.btExpanded
-
-                                Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Qt.rgba(1, 1, 1, 0.1) }
-
-                                Text { text: "Connected Devices"; color: Colors.c(7); font.bold: true; font.pixelSize: 12; font.family: "Hack Nerd Font" }
-
-                                ColumnLayout {
-                                    Layout.fillWidth: true
-                                    spacing: 4
-                                    visible: clockRoot.connectedDevices.length > 0
-                                    Repeater {
-                                        model: clockRoot.connectedDevices
-                                        delegate: Rectangle {
-                                            Layout.fillWidth: true
-                                            implicitHeight: 28
-                                            radius: 8
-                                            color: Qt.rgba(1, 1, 1, 0.05)
-                                            RowLayout {
-                                                anchors.fill: parent
-                                                anchors.leftMargin: 8
-                                                anchors.rightMargin: 8
-                                                Text { text: "󰂱"; color: Colors.c(5); font.pixelSize: 13; font.family: "Hack Nerd Font" }
-                                                Text { text: modelData.name || modelData.mac; color: Colors.c(7); font.pixelSize: 12; font.family: "Hack Nerd Font" }
-                                                Item { Layout.fillWidth: true }
-                                                Text { text: "Disconnect"; color: Colors.c(1); font.pixelSize: 11; font.bold: true; font.family: "Hack Nerd Font" }
-                                            }
-                                            MouseArea {
-                                                anchors.fill: parent
-                                                cursorShape: Qt.PointingHandCursor
-                                                onClicked: Quickshell.execDetached(["bluetoothctl", "disconnect", modelData.mac])
-                                            }
-                                        }
-                                    }
-                                }
-
-                                Text {
-                                    visible: clockRoot.connectedDevices.length === 0
-                                    text: "No devices connected"
-                                    color: Colors.c(8)
-                                    font.pixelSize: 11
-                                    font.family: "Hack Nerd Font"
-                                }
-
-                                Text { text: "Available Devices"; color: Colors.c(7); font.bold: true; font.pixelSize: 12; font.family: "Hack Nerd Font" }
-
-                                ColumnLayout {
-                                    Layout.fillWidth: true
-                                    spacing: 4
-                                    Repeater {
-                                        model: clockRoot.availableDevices.slice(0, 5)
-                                        delegate: Rectangle {
-                                            Layout.fillWidth: true
-                                            implicitHeight: 28
-                                            radius: 8
-                                            color: btItemArea.containsMouse ? Qt.rgba(1, 1, 1, 0.05) : "transparent"
-                                            RowLayout {
-                                                anchors.fill: parent
-                                                anchors.leftMargin: 8
-                                                anchors.rightMargin: 8
-                                                Text { text: "󰂯"; color: Colors.c(7); font.pixelSize: 13; font.family: "Hack Nerd Font" }
-                                                Text { text: modelData.name || modelData.mac; color: Colors.c(7); font.pixelSize: 12; font.family: "Hack Nerd Font" }
-                                                Item { Layout.fillWidth: true }
-                                                Text { text: "Pair"; color: Colors.c(5); font.pixelSize: 11; font.bold: true; font.family: "Hack Nerd Font" }
-                                            }
-                                            MouseArea {
-                                                id: btItemArea
-                                                anchors.fill: parent
-                                                hoverEnabled: true
-                                                cursorShape: Qt.PointingHandCursor
-                                                onClicked: Quickshell.execDetached(["bluetoothctl", "connect", modelData.mac])
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // 9. DISPLAY MANAGEMENT & RESOLUTION SWITCHER
+                    // DISPLAY MANAGEMENT & RESOLUTION SWITCHER
                     Rectangle {
                         Layout.fillWidth: true
                         implicitHeight: clockRoot.displayExpanded ? dispLayout.implicitHeight + 24 : 60
@@ -1693,7 +1450,7 @@ Item {
                         }
                     }
 
-                    // 10. SYSTEM UPDATES CARD
+                    // SYSTEM UPDATES CARD
                     Rectangle {
                         Layout.fillWidth: true
                         implicitHeight: 70
@@ -1865,7 +1622,7 @@ Item {
                 // ================================================
                 Rectangle {
                     Layout.fillWidth: true
-                    implicitHeight: 280
+                    implicitHeight: 320
                     radius: 18
                     color: clockRoot.pywalCardBg(1)
                     border.color: Colors.c(1)
@@ -1873,14 +1630,15 @@ Item {
                     visible: clockRoot.activeTab === "Media"
 
                     ColumnLayout {
-                        anchors.centerIn: parent
+                        anchors.fill: parent
+                        anchors.margins: 20
                         spacing: 16
 
                         Rectangle {
                             Layout.alignment: Qt.AlignHCenter
-                            implicitWidth: 100
-                            implicitHeight: 100
-                            radius: 20
+                            implicitWidth: 90
+                            implicitHeight: 90
+                            radius: 18
                             color: Colors.bg()
                             clip: true
 
@@ -1894,7 +1652,7 @@ Item {
                                 anchors.centerIn: parent
                                 text: "󰝚"
                                 color: Colors.c(8)
-                                font.pixelSize: 42
+                                font.pixelSize: 36
                                 font.family: "Hack Nerd Font"
                                 visible: !parent.children[0].visible
                             }
@@ -1919,6 +1677,55 @@ Item {
                             }
                         }
 
+                        // Song Seek Slider
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 4
+                            visible: clockRoot.hasMedia
+
+                            Rectangle {
+                                Layout.fillWidth: true
+                                implicitHeight: 8
+                                radius: 4
+                                color: Colors.bg()
+
+                                Rectangle {
+                                    width: (clockRoot.player && clockRoot.player.length > 0) ? parent.width * Math.min(1, Math.max(0, clockRoot.player.position / clockRoot.player.length)) : 0
+                                    height: parent.height
+                                    radius: 4
+                                    color: Colors.c(1)
+                                }
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: (mouse) => {
+                                        if (clockRoot.player && clockRoot.player.length > 0) {
+                                            var pct = Math.max(0, Math.min(1, mouse.x / width))
+                                            clockRoot.player.position = pct * clockRoot.player.length
+                                        }
+                                    }
+                                }
+                            }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Text {
+                                    text: clockRoot.player ? clockRoot.formatTime(clockRoot.player.position) : "0:00"
+                                    color: Colors.c(8)
+                                    font.pixelSize: 11
+                                    font.family: "Hack Nerd Font"
+                                }
+                                Item { Layout.fillWidth: true }
+                                Text {
+                                    text: clockRoot.player ? clockRoot.formatTime(clockRoot.player.length) : "0:00"
+                                    color: Colors.c(8)
+                                    font.pixelSize: 11
+                                    font.family: "Hack Nerd Font"
+                                }
+                            }
+                        }
+
                         RowLayout {
                             spacing: 24
                             Layout.alignment: Qt.AlignHCenter
@@ -1940,7 +1747,250 @@ Item {
                 }
 
                 // ================================================
-                // TAB 3: PERFORMANCE VIEW
+                // TAB 3: NETWORK & BLUETOOTH COMBINED VIEW
+                // ================================================
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 14
+                    visible: clockRoot.activeTab === "Network/BT"
+
+                    // Network Panel
+                    Rectangle {
+                        Layout.fillWidth: true
+                        implicitHeight: comboNetLayout.implicitHeight + 28
+                        radius: 18
+                        color: clockRoot.pywalCardBg(2)
+                        border.color: Colors.c(2)
+                        border.width: 1.5
+
+                        ColumnLayout {
+                            id: comboNetLayout
+                            anchors.top: parent.top
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.margins: 14
+                            spacing: 12
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 10
+
+                                Text {
+                                    text: clockRoot.connectionType === "wifi" ? "󰤨" : (clockRoot.connectionType === "ethernet" ? "󰈀" : "󰤭")
+                                    color: Colors.c(2)
+                                    font.pixelSize: 18
+                                    font.family: "Hack Nerd Font"
+                                }
+
+                                ColumnLayout {
+                                    spacing: 2
+                                    Text {
+                                        text: clockRoot.activeName
+                                        color: Colors.c(7)
+                                        font.bold: true
+                                        font.pixelSize: 13
+                                        font.family: "Hack Nerd Font"
+                                    }
+                                    Text {
+                                        text: clockRoot.subStatus + " (" + clockRoot.ipAddress + ")"
+                                        color: Colors.c(8)
+                                        font.pixelSize: 10
+                                        font.family: "Hack Nerd Font"
+                                    }
+                                }
+
+                                Item { Layout.fillWidth: true }
+                            }
+
+                            Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Qt.rgba(1, 1, 1, 0.1) }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Text { text: "Gateway: " + clockRoot.gateway; color: Colors.c(8); font.pixelSize: 10; font.family: "Hack Nerd Font" }
+                                Item { Layout.fillWidth: true }
+                                Text { text: "Ping: " + clockRoot.pingMs; color: Colors.c(8); font.pixelSize: 10; font.family: "Hack Nerd Font" }
+                            }
+
+                            RowLayout {
+                                spacing: 6
+                                Text { text: "DNS:"; color: Colors.c(8); font.pixelSize: 10; font.family: "Hack Nerd Font" }
+                                Repeater {
+                                    model: ["DHCP", "Cloudflare", "Google"]
+                                    delegate: Rectangle {
+                                        implicitWidth: comboDnsText.implicitWidth + 10
+                                        implicitHeight: 18
+                                        radius: 9
+                                        color: clockRoot.selectedDns === modelData ? Colors.c(2) : Colors.bg()
+                                        Text {
+                                            id: comboDnsText
+                                            anchors.centerIn: parent
+                                            text: modelData
+                                            color: clockRoot.selectedDns === modelData ? Colors.c(0) : Colors.c(7)
+                                            font.pixelSize: 9
+                                            font.family: "Hack Nerd Font"
+                                        }
+                                        MouseArea {
+                                            anchors.fill: parent
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: clockRoot.applyDns(modelData)
+                                        }
+                                    }
+                                }
+                            }
+
+                            Text {
+                                text: "Available Wi-Fi Networks"
+                                color: Colors.c(7)
+                                font.bold: true
+                                font.pixelSize: 12
+                                font.family: "Hack Nerd Font"
+                                visible: clockRoot.wifiEnabled
+                            }
+
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: 4
+                                visible: clockRoot.wifiEnabled
+
+                                Repeater {
+                                    model: clockRoot.otherNetworks.slice(0, 4)
+                                    delegate: Rectangle {
+                                        Layout.fillWidth: true
+                                        implicitHeight: 28
+                                        radius: 6
+                                        color: comboNetArea.containsMouse ? Qt.rgba(1, 1, 1, 0.05) : "transparent"
+
+                                        RowLayout {
+                                            anchors.fill: parent
+                                            anchors.leftMargin: 6
+                                            anchors.rightMargin: 6
+
+                                            Text { text: "󰤨"; color: Colors.c(7); font.pixelSize: 12; font.family: "Hack Nerd Font" }
+                                            Text { text: modelData; color: Colors.c(7); font.pixelSize: 11; font.family: "Hack Nerd Font"; elide: Text.ElideRight; Layout.fillWidth: true }
+                                            Text { text: "Connect"; color: Colors.c(2); font.pixelSize: 10; font.bold: true; font.family: "Hack Nerd Font" }
+                                        }
+
+                                        MouseArea {
+                                            id: comboNetArea
+                                            anchors.fill: parent
+                                            hoverEnabled: true
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: clockRoot.connectWifi(modelData)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Bluetooth Panel
+                    Rectangle {
+                        Layout.fillWidth: true
+                        implicitHeight: comboBtLayout.implicitHeight + 28
+                        radius: 18
+                        color: clockRoot.pywalCardBg(5)
+                        border.color: Colors.c(5)
+                        border.width: 1.5
+
+                        ColumnLayout {
+                            id: comboBtLayout
+                            anchors.top: parent.top
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.margins: 14
+                            spacing: 12
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 10
+
+                                Text { text: "󰂯"; color: Colors.c(5); font.pixelSize: 18; font.family: "Hack Nerd Font" }
+
+                                ColumnLayout {
+                                    spacing: 2
+                                    Text { text: "Bluetooth"; color: Colors.c(7); font.bold: true; font.pixelSize: 13; font.family: "Hack Nerd Font" }
+                                    Text { text: clockRoot.btPowered ? (clockRoot.connectedDevices.length + " Connected") : "Disabled"; color: Colors.c(8); font.pixelSize: 10; font.family: "Hack Nerd Font" }
+                                }
+
+                                Item { Layout.fillWidth: true }
+                            }
+
+                            Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Qt.rgba(1, 1, 1, 0.1) }
+
+                            Text { text: "Connected Devices"; color: Colors.c(7); font.bold: true; font.pixelSize: 11; font.family: "Hack Nerd Font" }
+
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: 4
+                                visible: clockRoot.connectedDevices.length > 0
+                                Repeater {
+                                    model: clockRoot.connectedDevices
+                                    delegate: Rectangle {
+                                        Layout.fillWidth: true
+                                        implicitHeight: 28
+                                        radius: 6
+                                        color: Qt.rgba(1, 1, 1, 0.05)
+                                        RowLayout {
+                                            anchors.fill: parent
+                                            anchors.leftMargin: 6
+                                            anchors.rightMargin: 6
+                                            Text { text: "󰂱"; color: Colors.c(5); font.pixelSize: 12; font.family: "Hack Nerd Font" }
+                                            Text { text: modelData.name || modelData.mac; color: Colors.c(7); font.pixelSize: 11; font.family: "Hack Nerd Font"; elide: Text.ElideRight; Layout.fillWidth: true }
+                                            Text { text: "Disconnect"; color: Colors.c(1); font.pixelSize: 10; font.bold: true; font.family: "Hack Nerd Font" }
+                                        }
+                                        MouseArea {
+                                            anchors.fill: parent
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: Quickshell.execDetached(["bluetoothctl", "disconnect", modelData.mac])
+                                        }
+                                    }
+                                }
+                            }
+
+                            Text {
+                                visible: clockRoot.connectedDevices.length === 0
+                                text: "No devices connected"
+                                color: Colors.c(8)
+                                font.pixelSize: 10
+                                font.family: "Hack Nerd Font"
+                            }
+
+                            Text { text: "Available Devices"; color: Colors.c(7); font.bold: true; font.pixelSize: 11; font.family: "Hack Nerd Font" }
+
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: 4
+                                Repeater {
+                                    model: clockRoot.availableDevices.slice(0, 4)
+                                    delegate: Rectangle {
+                                        Layout.fillWidth: true
+                                        implicitHeight: 28
+                                        radius: 6
+                                        color: comboBtArea.containsMouse ? Qt.rgba(1, 1, 1, 0.05) : "transparent"
+                                        RowLayout {
+                                            anchors.fill: parent
+                                            anchors.leftMargin: 6
+                                            anchors.rightMargin: 6
+                                            Text { text: "󰂯"; color: Colors.c(7); font.pixelSize: 12; font.family: "Hack Nerd Font" }
+                                            Text { text: modelData.name || modelData.mac; color: Colors.c(7); font.pixelSize: 11; font.family: "Hack Nerd Font"; elide: Text.ElideRight; Layout.fillWidth: true }
+                                            Text { text: "Pair"; color: Colors.c(5); font.pixelSize: 10; font.bold: true; font.family: "Hack Nerd Font" }
+                                        }
+                                        MouseArea {
+                                            id: comboBtArea
+                                            anchors.fill: parent
+                                            hoverEnabled: true
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: Quickshell.execDetached(["bluetoothctl", "connect", modelData.mac])
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // ================================================
+                // TAB 4: PERFORMANCE VIEW
                 // ================================================
                 ColumnLayout {
                     Layout.fillWidth: true
@@ -2019,45 +2069,106 @@ Item {
                 }
 
                 // ================================================
-                // TAB 4: WEATHER DETAILS VIEW
+                // TAB 5: WEATHER DETAILS VIEW
                 // ================================================
                 Rectangle {
                     Layout.fillWidth: true
-                    implicitHeight: 220
+                    implicitHeight: 270
                     radius: 18
                     color: clockRoot.pywalCardBg(4)
                     border.color: Colors.c(4)
                     border.width: 1.5
                     visible: clockRoot.activeTab === "Weather"
 
-                    RowLayout {
+                    ColumnLayout {
                         anchors.fill: parent
-                        anchors.margins: 24
-                        spacing: 24
+                        anchors.margins: 20
+                        spacing: 16
 
-                        ColumnLayout {
-                            spacing: 6
-                            Text { text: clockRoot.iconSymbol; font.pixelSize: 52; color: Colors.c(1); font.family: "Hack Nerd Font" }
-                            Text { text: clockRoot.currentTemp; font.pixelSize: 32; font.bold: true; color: Colors.c(7); font.family: "Hack Nerd Font" }
-                            Text { text: clockRoot.condition; font.pixelSize: 15; color: Colors.c(4); font.family: "Hack Nerd Font" }
-                            Text { text: clockRoot.location; font.pixelSize: 12; color: Colors.c(8); font.family: "Hack Nerd Font" }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 10
+
+                            TextField {
+                                id: locationInput
+                                Layout.fillWidth: true
+                                implicitHeight: 36
+                                placeholderText: "Enter city or location..."
+                                text: clockRoot.customLocation
+                                font.pixelSize: 13
+                                font.family: "Hack Nerd Font"
+                                color: Colors.c(7)
+                                background: Rectangle {
+                                    color: Colors.bg()
+                                    radius: 10
+                                    border.color: locationInput.activeFocus ? Colors.c(4) : Colors.c(8)
+                                    border.width: 1
+                                }
+                                onAccepted: {
+                                    if (text.trim() !== "") {
+                                        clockRoot.customLocation = text.trim()
+                                        clockRoot.refreshWeather()
+                                    }
+                                }
+                            }
+
+                            Rectangle {
+                                implicitWidth: updateLocText.implicitWidth + 20
+                                implicitHeight: 36
+                                radius: 10
+                                color: Colors.c(4)
+
+                                Text {
+                                    id: updateLocText
+                                    anchors.centerIn: parent
+                                    text: "Update"
+                                    color: Colors.c(0)
+                                    font.bold: true
+                                    font.pixelSize: 12
+                                    font.family: "Hack Nerd Font"
+                                }
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: {
+                                        if (locationInput.text.trim() !== "") {
+                                            clockRoot.customLocation = locationInput.text.trim()
+                                            clockRoot.refreshWeather()
+                                        }
+                                    }
+                                }
+                            }
                         }
 
-                        Item { Layout.fillWidth: true }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 24
 
-                        ColumnLayout {
-                            spacing: 12
-                            Repeater {
-                                model: [
-                                    { name: "High / Low", val: clockRoot.tempHigh + " / " + clockRoot.tempLow },
-                                    { name: "Humidity", val: clockRoot.humidity },
-                                    { name: "Wind Speed", val: clockRoot.windSpeed }
-                                ]
-                                delegate: RowLayout {
-                                    spacing: 16
-                                    Text { text: modelData.name; color: Colors.c(8); font.pixelSize: 13; font.family: "Hack Nerd Font" }
-                                    Item { Layout.fillWidth: true }
-                                    Text { text: modelData.val; color: Colors.c(7); font.bold: true; font.pixelSize: 14; font.family: "Hack Nerd Font" }
+                            ColumnLayout {
+                                spacing: 6
+                                Text { text: clockRoot.iconSymbol; font.pixelSize: 48; color: Colors.c(1); font.family: "Hack Nerd Font" }
+                                Text { text: clockRoot.currentTemp; font.pixelSize: 28; font.bold: true; color: Colors.c(7); font.family: "Hack Nerd Font" }
+                                Text { text: clockRoot.condition; font.pixelSize: 14; color: Colors.c(4); font.family: "Hack Nerd Font" }
+                                Text { text: clockRoot.location; font.pixelSize: 12; color: Colors.c(8); font.family: "Hack Nerd Font" }
+                            }
+
+                            Item { Layout.fillWidth: true }
+
+                            ColumnLayout {
+                                spacing: 12
+                                Repeater {
+                                    model: [
+                                        { name: "High / Low", val: clockRoot.tempHigh + " / " + clockRoot.tempLow },
+                                        { name: "Humidity", val: clockRoot.humidity },
+                                        { name: "Wind Speed", val: clockRoot.windSpeed }
+                                    ]
+                                    delegate: RowLayout {
+                                        spacing: 16
+                                        Text { text: modelData.name; color: Colors.c(8); font.pixelSize: 13; font.family: "Hack Nerd Font" }
+                                        Item { Layout.fillWidth: true }
+                                        Text { text: modelData.val; color: Colors.c(7); font.bold: true; font.pixelSize: 14; font.family: "Hack Nerd Font" }
+                                    }
                                 }
                             }
                         }
